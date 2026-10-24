@@ -1,0 +1,157 @@
+# MITRE ATT&CK (Enterprise) mapping for post-login shell activity and auth events.
+# `command` regexes run against every shell command an attacker types (case-insensitive).
+techniques:
+  - id: T1110.001
+    name: "Brute Force: Password Guessing"
+    tactic: credential-access
+    event: login_failed
+
+  - id: T1078
+    name: Valid Accounts
+    tactic: initial-access
+    event: login_success
+
+  - id: T1082
+    name: System Information Discovery
+    tactic: discovery
+    command: '\buname\b|/proc/(cpuinfo|meminfo|version)|\blscpu\b|\bnproc\b|/etc/(issue|os-release|lsb-release)|\bhostnamectl\b|\bfree\s+-[mgh]|\bdmidecode\b'
+
+  - id: T1033
+    name: System Owner/User Discovery
+    tactic: discovery
+    command: '\bwhoami\b|(^|[;&|]\s*)(id|w|who)(\s|$|;)|\blast\b'
+
+  - id: T1087.001
+    name: "Account Discovery: Local Account"
+    tactic: discovery
+    command: '/etc/passwd|\bgetent\s+passwd|\bcompgen\s+-u'
+
+  - id: T1057
+    name: Process Discovery
+    tactic: discovery
+    command: '\bps\s+(-?aux|-ef|-a)|\btop\b|\bpgrep\b|/proc/\d+/'
+
+  - id: T1016
+    name: System Network Configuration Discovery
+    tactic: discovery
+    command: '\bifconfig\b|\bip\s+(a|addr|route|link)\b|/etc/resolv\.conf|\barp\s+-a\b|/etc/hosts\b'
+
+  - id: T1049
+    name: System Network Connections Discovery
+    tactic: discovery
+    command: '\bnetstat\b|\bss\s+-[a-z]*[tu]'
+
+  - id: T1083
+    name: File and Directory Discovery
+    tactic: discovery
+    command: '(^|[;&|]\s*)(ls|find|locate)(\s|$)'
+
+  - id: T1046
+    name: Network Service Discovery
+    tactic: discovery
+    command: '\b(nmap|masscan|zmap|zgrab)\b'
+
+  - id: T1518.001
+    name: "Software Discovery: Security Software Discovery"
+    tactic: discovery
+    command: '(aliyun|aegis|qcloud|bcm-agent|apparmor|selinux|crowdstrike|falcon)'
+
+  - id: T1003.008
+    name: "OS Credential Dumping: /etc/passwd and /etc/shadow"
+    tactic: credential-access
+    command: '/etc/shadow'
+
+  - id: T1552.004
+    name: "Unsecured Credentials: Private Keys"
+    tactic: credential-access
+    command: '\.ssh/id_(rsa|ed25519|ecdsa)\b'
+
+  - id: T1105
+    name: Ingress Tool Transfer
+    tactic: command-and-control
+    command: '\b(wget|curl|tftp|ftpget|scp)\b|\bnc\b.*>|/dev/tcp/'
+
+  - id: T1059.004
+    name: "Command and Scripting Interpreter: Unix Shell"
+    tactic: execution
+    command: '\b(sh|bash)\s+-c\b|\|\s*(ba)?sh\b|\.sh\b|\bbusybox\s+\w+'
+
+  - id: T1059.006
+    name: "Command and Scripting Interpreter: Python"
+    tactic: execution
+    command: '\bpython[23]?\s+-c\b|\bperl\s+-e\b'
+
+  - id: T1140
+    name: Deobfuscate/Decode Files or Information
+    tactic: defense-evasion
+    command: '\bbase64\s+(-d|--decode)|\bxxd\s+-r|\\x[0-9a-f]{2}\\x[0-9a-f]{2}'
+
+  - id: T1222.002
+    name: "File and Directory Permissions Modification: Linux"
+    tactic: defense-evasion
+    command: '\bchmod\b|\bchattr\b'
+
+  - id: T1070.003
+    name: "Indicator Removal: Clear Command History"
+    tactic: defense-evasion
+    command: 'history\s+-c|unset\s+histfile|histfile=/dev/null|\.bash_history'
+
+  - id: T1070.004
+    name: "Indicator Removal: File Deletion"
+    tactic: defense-evasion
+    command: '\brm\s+-[a-z]*f|\bshred\b'
+
+  - id: T1562.001
+    name: "Impair Defenses: Disable or Modify Tools"
+    tactic: defense-evasion
+    command: '(systemctl|service)\s+(stop|disable)\s+\S*(firewalld|ufw|iptables|apparmor|auditd)|setenforce\s+0|ufw\s+disable|iptables\s+-F|pkill\s+.*(aegis|aliyun)'
+
+  - id: T1564.001
+    name: "Hide Artifacts: Hidden Files and Directories"
+    tactic: defense-evasion
+    command: '(mkdir|cd)\s+(/tmp|/var/tmp|/dev/shm)?/?\.[a-z0-9]'
+
+  - id: T1053.003
+    name: "Scheduled Task/Job: Cron"
+    tactic: persistence
+    command: '\bcrontab\b|/etc/cron|/var/spool/cron'
+
+  - id: T1098.004
+    name: "Account Manipulation: SSH Authorized Keys"
+    tactic: persistence
+    command: 'authorized_keys'
+
+  - id: T1098
+    name: Account Manipulation
+    tactic: persistence
+    command: '\bchpasswd\b|(^|[;&|]\s*)passwd\b|\busermod\b'
+
+  - id: T1136.001
+    name: "Create Account: Local Account"
+    tactic: persistence
+    command: '\b(useradd|adduser)\b'
+
+  - id: T1543.002
+    name: "Create or Modify System Process: Systemd Service"
+    tactic: persistence
+    command: 'systemctl\s+(enable|daemon-reload)|/etc/systemd/system/'
+
+  - id: T1037.004
+    name: "Boot or Logon Initialization Scripts: RC Scripts"
+    tactic: persistence
+    command: '/etc/rc\.local|/etc/init\.d/'
+
+  - id: T1489
+    name: Service Stop
+    tactic: impact
+    command: '\b(pkill|killall)\s+-9|\bkill\s+-9\s+\$\('
+
+  - id: T1496
+    name: Resource Hijacking
+    tactic: impact
+    command: 'xmrig|minerd|cpuminer|stratum\+tcp|cryptonight|nicehash|moneroocean|c3pool|supportxmr|\bnanopool\b'
+
+  - id: T1090
+    name: Proxy
+    tactic: command-and-control
+    command: '\b(socks5|3proxy|microsocks|gost)\b'

@@ -1,0 +1,68 @@
+# Non-CVE classification tags: reconnaissance, secret hunting, brute force, generic payloads.
+rules:
+  - id: env-file
+    tag: secret-file-probe
+    name: .env / config secret file probe
+    match:
+      path: '/(\.env(\.\w+)?|config\.json|\.aws/credentials|wp-config\.php\.(bak|old|save)|\.npmrc|\.docker/config\.json)(\?|$)'
+
+  - id: git-exposure
+    tag: vcs-exposure
+    name: Exposed .git/.svn repository probe
+    match:
+      path: '/\.(git|svn|hg)/'
+
+  - id: wordpress-login
+    tag: wordpress-bruteforce
+    name: WordPress login / XML-RPC brute force
+    match:
+      path: '/(wp-login\.php|xmlrpc\.php)'
+      method: '^POST$'
+
+  - id: wordpress-scan
+    tag: wordpress-recon
+    name: WordPress plugin / install probe
+    match:
+      path: '/(wp-content/plugins/|wp-includes/|wp-admin/(setup-config|install)\.php|wlwmanifest\.xml)'
+
+  - id: admin-panel
+    tag: admin-panel-probe
+    name: Database / admin panel discovery
+    match:
+      path: '/(phpmyadmin|pma|myadmin|adminer(\.php)?|manager/html|solr/admin|actuator)(/|$|\?)'
+
+  - id: webshell-probe
+    tag: webshell-probe
+    name: Probe for previously planted webshells
+    match:
+      path: '/(shell|cmd|c99|r57|wso|alfa|xleet)\w*\.php'
+
+  - id: cmd-injection-generic
+    tag: command-injection
+    name: Generic command injection payload
+    match:
+      any: '(;|\||`|\$\()\s*(wget|curl|tftp|busybox|chmod\s+\+?7)\b'
+
+  - id: dropper-download
+    tag: malware-dropper
+    name: Payload fetches a remote binary/script
+    match:
+      any: '(wget|curl|tftp)\s+[^\n]*(https?://|\d+\.\d+\.\d+\.\d+)[^\n]*(\.sh|mips|mpsl|arm7?|x86|i686|bins?)\b'
+
+  - id: path-traversal-generic
+    tag: path-traversal
+    name: Generic path traversal to sensitive files
+    match:
+      path: '(\.\./){2,}.*(etc/passwd|win\.ini|boot\.ini)'
+
+  - id: scanner-ua
+    tag: known-scanner
+    name: Self-identified research / commercial scanner
+    match:
+      ua: 'zgrab|masscan|censys|shodan|nmap|internet-measurement|expanse|paloalto|leakix|nuclei|onyphe|netcraft|bitsight'
+
+  - id: sql-injection-generic
+    tag: sql-injection
+    name: Generic SQL injection probe
+    match:
+      any: "(union\\s+(all\\s+)?select|'\\s*or\\s+'?1'?\\s*=\\s*'?1|sleep\\(\\d+\\)|benchmark\\(\\d+)"

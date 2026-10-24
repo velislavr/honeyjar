@@ -1,0 +1,287 @@
+# Signatures for actively exploited web/appliance CVEs (most are on the CISA KEV list).
+# Every field under `match` must hit. Patterns are case-insensitive.
+rules:
+  - id: log4shell
+    cve: CVE-2021-44228
+    name: Apache Log4j2 JNDI RCE (Log4Shell)
+    cvss: 10.0
+    match:
+      any: '\$\{[^\n]{0,80}?(jndi|j\W{0,10}n\W{0,10}d\W{0,10}i|\$\{(lower|upper|env|sys|::-))'
+
+  - id: shellshock
+    cve: CVE-2014-6271
+    name: GNU Bash environment RCE (Shellshock)
+    cvss: 9.8
+    match:
+      any: '\(\)\s*\{\s*:?\s*;?\s*\}\s*;'
+
+  - id: phpunit-eval-stdin
+    cve: CVE-2017-9841
+    name: PHPUnit eval-stdin.php RCE
+    cvss: 9.8
+    match:
+      path: 'phpunit/.*eval-stdin\.php'
+
+  - id: php-cgi-arg-injection
+    cve: CVE-2024-4577
+    name: PHP-CGI argument injection (Windows best-fit)
+    cvss: 9.8
+    match:
+      raw_path: '[?&](%ad|-|%2d)d[+ ]?allow_url_include'
+
+  - id: thinkphp-invokefunction
+    cve: CVE-2018-20062
+    name: ThinkPHP 5.x invokefunction RCE
+    cvss: 9.8
+    match:
+      path: 'invokefunction.*call_user_func_array'
+
+  - id: laravel-ignition
+    cve: CVE-2021-3129
+    name: Laravel Ignition execute-solution RCE
+    cvss: 9.8
+    match:
+      path: '/_ignition/execute-solution'
+
+  - id: apache-path-traversal-41773
+    cve: CVE-2021-41773
+    name: Apache HTTP Server 2.4.49 path traversal / RCE
+    cvss: 7.5
+    match:
+      raw_path: '/(cgi-bin|icons)/(\.%2e|%2e\.|%2e%2e)/'
+
+  - id: apache-path-traversal-42013
+    cve: CVE-2021-42013
+    name: Apache HTTP Server 2.4.50 path traversal / RCE
+    cvss: 9.8
+    match:
+      raw_path: '/(cgi-bin|icons)/(%%32%65|\.%%32%65|%%32%65\.)'
+
+  - id: struts2-content-type-ognl
+    cve: CVE-2017-5638
+    name: Apache Struts2 Jakarta multipart OGNL RCE
+    cvss: 10.0
+    match:
+      headers: 'content-type:[^\n]*%\{[^\n]*(_memberaccess|ognl|@java\.lang)'
+
+  - id: spring4shell
+    cve: CVE-2022-22965
+    name: Spring Framework ClassLoader RCE (Spring4Shell)
+    cvss: 9.8
+    match:
+      any: 'class\.module\.classloader'
+
+  - id: confluence-ognl-2022
+    cve: CVE-2022-26134
+    name: Atlassian Confluence OGNL injection
+    cvss: 9.8
+    match:
+      path: '\$\{[^}]*(@java\.lang|getruntime|ognl|class\.forname|\.exec\()'
+
+  - id: confluence-template-2023
+    cve: CVE-2023-22527
+    name: Atlassian Confluence template injection RCE
+    cvss: 10.0
+    match:
+      path: '/template/aui/text-inline\.vm'
+
+  - id: confluence-ognl-2021
+    cve: CVE-2021-26084
+    name: Atlassian Confluence Webwork OGNL injection
+    cvss: 9.8
+    match:
+      path: '/pages/(createpage-entervariables|doenterpagevariables)\.action'
+      body: 'querystring|linkcreation'
+
+  - id: panos-globalprotect
+    cve: CVE-2024-3400
+    name: Palo Alto PAN-OS GlobalProtect command injection
+    cvss: 10.0
+    match:
+      headers: 'cookie:[^\n]*sessid=[^;\n]*(\.\./|\$\{ifs\}|`)'
+
+  - id: ivanti-auth-bypass
+    cve: CVE-2023-46805
+    name: Ivanti Connect Secure authentication bypass
+    cvss: 8.2
+    match:
+      path: '/api/v1/(totp/user-backup-code|cav/client/status)/\.\./'
+
+  - id: ivanti-cmd-injection
+    cve: CVE-2024-21887
+    name: Ivanti Connect Secure command injection
+    cvss: 9.1
+    match:
+      path: '/(license/keys-status/|system/maintenance/archiving/cloud-server-test-connection)'
+
+  - id: pulse-secure-file-read
+    cve: CVE-2019-11510
+    name: Pulse Secure SSL VPN arbitrary file read
+    cvss: 10.0
+    match:
+      path: '/dana-na/\.\./dana/html5acc/guacamole/'
+
+  - id: fortios-path-traversal
+    cve: CVE-2018-13379
+    name: Fortinet FortiOS SSL VPN path traversal
+    cvss: 9.8
+    match:
+      path: '/remote/fgt_lang\?lang=/\.\./'
+
+  - id: fortios-auth-bypass
+    cve: CVE-2022-40684
+    name: Fortinet FortiOS/FortiProxy authentication bypass
+    cvss: 9.8
+    match:
+      path: '/api/v2/cmdb/system/admin'
+      ua: 'report runner|node\.js'
+
+  - id: citrix-adc-traversal
+    cve: CVE-2019-19781
+    name: Citrix ADC / Gateway directory traversal RCE
+    cvss: 9.8
+    match:
+      path: '/vpns?/(\.\./)*(vpns/)?(portal/scripts/(newbm|rmbm|picktheme)\.pl|cfg/smb\.conf)'
+
+  - id: citrix-bleed
+    cve: CVE-2023-4966
+    name: Citrix NetScaler session token leak (Citrix Bleed)
+    cvss: 9.4
+    match:
+      path: '/oauth/idp/\.well-known/openid-configuration'
+      headers: 'host: [^\n]{1000,}'
+
+  - id: f5-bigip-icontrol
+    cve: CVE-2022-1388
+    name: F5 BIG-IP iControl REST authentication bypass
+    cvss: 9.8
+    match:
+      path: '/mgmt/tm/util/bash'
+
+  - id: f5-bigip-tmui
+    cve: CVE-2020-5902
+    name: F5 BIG-IP TMUI RCE
+    cvss: 9.8
+    match:
+      path: '/tmui/login\.jsp/\.\.;/'
+
+  - id: exchange-proxyshell
+    cve: CVE-2021-34473
+    name: Microsoft Exchange ProxyShell SSRF
+    cvss: 9.8
+    match:
+      path: '/autodiscover/autodiscover\.json\?@'
+
+  - id: exchange-proxynotshell
+    cve: CVE-2022-41040
+    name: Microsoft Exchange ProxyNotShell SSRF
+    cvss: 8.8
+    match:
+      path: '/autodiscover/autodiscover\.json.*(powershell|mapi)'
+
+  - id: exchange-proxylogon
+    cve: CVE-2021-26855
+    name: Microsoft Exchange ProxyLogon SSRF
+    cvss: 9.8
+    match:
+      headers: 'x-anonresource-backend|x-beresource='
+
+  - id: moveit-sqli
+    cve: CVE-2023-34362
+    name: Progress MOVEit Transfer SQL injection
+    cvss: 9.8
+    match:
+      path: '/(moveitisapi/moveitisapi\.dll|guestaccess\.aspx|human2\.aspx)'
+
+  - id: vcenter-uploadova
+    cve: CVE-2021-21972
+    name: VMware vCenter vROps plugin file upload RCE
+    cvss: 9.8
+    match:
+      path: '/ui/vropspluginui/rest/services/(uploadova|getstatus)'
+
+  - id: gpon-rce
+    cve: CVE-2018-10562
+    name: Dasan GPON router command injection
+    cvss: 9.8
+    match:
+      path: '/gponform/diag_form'
+
+  - id: huawei-hg532
+    cve: CVE-2017-17215
+    name: Huawei HG532 UPnP command injection
+    cvss: 8.8
+    match:
+      path: '/ctrlt/deviceupgrade_1'
+
+  - id: realtek-sdk-miniigd
+    cve: CVE-2014-8361
+    name: Realtek SDK miniigd SOAP command injection
+    cvss: 9.8
+    match:
+      path: '/(picsdesc\.xml|wanipcn\.xml|upnp/control)'
+      body: 'newinternalclient'
+
+  - id: tplink-archer-ax21
+    cve: CVE-2023-1389
+    name: TP-Link Archer AX21 command injection
+    cvss: 8.8
+    match:
+      path: '/cgi-bin/luci/;stok=/locale'
+
+  - id: netgear-cgi-semicolon
+    cve: CVE-2016-6277
+    name: Netgear R7000/R6400 cgi-bin command injection
+    cvss: 8.8
+    match:
+      path: '^/cgi-bin/;'
+
+  - id: hikvision-weblanguage
+    cve: CVE-2021-36260
+    name: Hikvision IP camera command injection
+    cvss: 9.8
+    match:
+      path: '/sdk/weblanguage'
+
+  - id: dlink-getuser
+    cve: CVE-2020-25078
+    name: D-Link DCS camera admin password disclosure
+    cvss: 7.5
+    match:
+      path: '/config/getuser'
+
+  - id: lblink-limitclient
+    cve: CVE-2023-26801
+    name: LB-LINK router command injection
+    cvss: 9.8
+    match:
+      path: '/goform/set_limitclient_cfg'
+
+  - id: zyxel-ztp
+    cve: CVE-2022-30525
+    name: Zyxel firewall OS command injection
+    cvss: 9.8
+    match:
+      path: '/ztp/cgi-bin/handler'
+
+  - id: draytek-vigor
+    cve: CVE-2020-8515
+    name: DrayTek Vigor command injection
+    cvss: 9.8
+    match:
+      path: '/cgi-bin/mainfunction\.cgi'
+      body: 'action=login|keypath|cmd='
+
+  - id: jenkins-cli-file-read
+    cve: CVE-2024-23897
+    name: Jenkins CLI arbitrary file read
+    cvss: 9.8
+    match:
+      path: '/cli\?remoting=false'
+
+  - id: geoserver-ognl
+    cve: CVE-2024-36401
+    name: GeoServer property-name evaluation RCE
+    cvss: 9.8
+    match:
+      any: '(exec\(java\.lang\.runtime|valuereference=exec)'
