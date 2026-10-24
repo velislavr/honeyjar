@@ -1,0 +1,8 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+asyncpg==0.30.0
+redis==5.2.1
+PyYAML==6.0.2
+geoip2==4.8.1
+httpx==0.28.1
+orjson==3.10.13
