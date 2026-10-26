@@ -1,0 +1,81 @@
+# Honeypot sensor. Local dev uses high ports; production sets *_PORT to the real ones in .env.
+name: honeyjar-sensor
+
+services:
+  cowrie:
+    image: cowrie/cowrie:latest
+    restart: unless-stopped
+    environment:
+      COWRIE_HONEYPOT_HOSTNAME: ${COWRIE_HOSTNAME:-web-prod-02}
+      COWRIE_TELNET_ENABLED: "yes"
+      COWRIE_SSH_FORWARDING: "no"          # never relay attacker TCP connections
+      COWRIE_HONEYPOT_DOWNLOAD_LIMIT_SIZE: "10485760"
+    ports:
+      - "${SSH_PORT:-2222}:2222"
+      - "${TELNET_PORT:-2323}:2223"
+    volumes:
+      - cowrie-var:/cowrie/cowrie-git/var
+    networks: [honeypots]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    mem_limit: 512m
+    pids_limit: 256
+
+  http:
+    build: ./http-honeypot
+    restart: unless-stopped
+    environment:
+      HTTP_PORTS: "80,8080,8000,8888,7547,37215,52869"
+      HTTPS_PORTS: "443,8443,10443"
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: "0"
+    ports:
+      - "${HTTP_PORT:-8081}:80"
+      - "${HTTPS_PORT:-8444}:443"
+      - "${ALT_HTTP_PORTS_BIND:-127.0.0.1:}8080:8080"
+      - "${ALT_HTTP_PORTS_BIND:-127.0.0.1:}8443:8443"
+      - "${ALT_HTTP_PORTS_BIND:-127.0.0.1:}37215:37215"
+      - "${ALT_HTTP_PORTS_BIND:-127.0.0.1:}52869:52869"
+      - "${ALT_HTTP_PORTS_BIND:-127.0.0.1:}7547:7547"
+      - "${ALT_HTTP_PORTS_BIND:-127.0.0.1:}10443:10443"
+    volumes:
+      - http-logs:/logs
+      - http-data:/data
+    networks: [honeypots]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    mem_limit: 256m
+    pids_limit: 128
+
+  vector:
+    image: timberio/vector:0.45.0-alpine
+    restart: unless-stopped
+    command: ["--config", "/etc/vector/vector.yaml"]
+    environment:
+      CORE_URL: ${CORE_URL:?set CORE_URL}
+      SENSOR_TOKEN: ${SENSOR_TOKEN:?set SENSOR_TOKEN}
+    volumes:
+      - ./vector/vector.yaml:/etc/vector/vector.yaml:ro
+      - cowrie-var:/logs/cowrie:ro
+      - http-logs:/logs/http:ro
+      - vector-data:/var/lib/vector
+    networks: [shipper]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+networks:
+  # Honeypot containers live on a dedicated bridge; firewall.sh blocks its egress.
+  honeypots:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-honeypots
+  shipper:
+
+volumes:
+  cowrie-var:
+  http-logs:
+  http-data:
+  vector-data:

@@ -1,0 +1,49 @@
+# Ships honeypot JSON logs to the core's /api/ingest (over WireGuard in production).
+data_dir: /var/lib/vector
+
+sources:
+  cowrie:
+    type: file
+    include: ["/logs/cowrie/log/cowrie/cowrie.json*"]
+    read_from: beginning
+  http:
+    type: file
+    include: ["/logs/http/http.json*"]
+    read_from: beginning
+
+transforms:
+  parse_cowrie:
+    type: remap
+    inputs: [cowrie]
+    drop_on_error: true
+    source: |
+      . = object!(parse_json!(.message))
+      .honeypot = "cowrie"
+  parse_http:
+    type: remap
+    inputs: [http]
+    drop_on_error: true
+    source: |
+      . = object!(parse_json!(.message))
+      .honeypot = "http"
+
+sinks:
+  core:
+    type: http
+    inputs: [parse_cowrie, parse_http]
+    uri: "${CORE_URL}/api/ingest"
+    method: post
+    encoding:
+      codec: json
+    auth:
+      strategy: bearer
+      token: "${SENSOR_TOKEN}"
+    batch:
+      max_events: 500
+      timeout_secs: 2
+    buffer:
+      type: disk
+      max_size: 268435488
+      when_full: drop_newest
+    request:
+      retry_max_duration_secs: 300
