@@ -1,0 +1,80 @@
+# Core: ingest + enrichment + storage + API (+ dashboard, added in dashboard/).
+name: honeyjar-core
+
+x-app: &app
+  build: .
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql://honeyjar:${POSTGRES_PASSWORD}@db:5432/honeyjar
+    REDIS_URL: redis://redis:6379/0
+    GEOIP_DIR: /app/data/geoip
+  volumes:
+    - geoip:/app/data/geoip
+  depends_on:
+    db: { condition: service_healthy }
+    redis: { condition: service_started }
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: honeyjar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: honeyjar
+      TIMESCALEDB_TELEMETRY: "off"
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U honeyjar"]
+      interval: 5s
+      retries: 20
+    shm_size: 256m
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "noeviction"]
+    volumes: [redisdata:/data]
+
+  api:
+    <<: *app
+    command: ["uvicorn", "honeyjar.api:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers"]
+    ports:
+      - "${API_BIND:-127.0.0.1:8000}:8000"
+
+  worker:
+    <<: *app
+    command: ["python", "-m", "honeyjar.worker"]
+
+  feeds:
+    <<: *app
+    command: ["python", "-m", "honeyjar.feeds", "loop"]
+
+  dashboard:
+    build:
+      context: ../dashboard
+      args:
+        API_URL: http://api:8000   # baked into Next.js rewrites at build time
+    restart: unless-stopped
+    ports:
+      - "${DASHBOARD_BIND:-127.0.0.1:3001}:3000"
+    depends_on: [api]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    profiles: [prod]
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on: [api, dashboard]
+
+volumes:
+  caddy-data:
+  pgdata:
+  redisdata:
+  geoip:

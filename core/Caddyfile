@@ -1,0 +1,21 @@
+# Public entrypoint. DOMAIN comes from core/.env (e.g. honeyjar.tech); Caddy gets TLS automatically.
+{$DOMAIN:localhost} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		-Server
+	}
+	# Sensor ingest is only reachable over WireGuard, never through the public proxy.
+	@ingest path /api/ingest /api/ingest/*
+	respond @ingest 404
+
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy dashboard:3000
+	}
+}
