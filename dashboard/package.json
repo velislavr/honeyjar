@@ -1,0 +1,30 @@
+{
+  "name": "dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "land": "node scripts/build-land-hexes.mjs"
+  },
+  "dependencies": {
+    "next": "16.4.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-globe.gl": "^2.38.0",
+    "swr": "^2.5.1",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/three": "^0.186.0",
+    "@types/topojson-client": "^3.1.5",
+    "h3-js": "^4.5.0",
+    "topojson-client": "^3.1.0",
+    "typescript": "^5",
+    "world-atlas": "^2.0.2"
+  }
+}
