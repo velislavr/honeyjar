@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- lid -->
+  <rect x="17" y="8" width="30" height="9" rx="4.5" fill="#8a5300"/>
+  <!-- jar -->
+  <path d="M19 18h26c6 0 9 5 9 11v17c0 7-5 12-12 12H22c-7 0-12-5-12-12V29c0-6 3-11 9-11z" fill="#fbe7b5"/>
+  <!-- honey fill with a soft wave -->
+  <path d="M10 34c5-3 9 2 14-1s9-3 14 0 10 3 16 0v12c0 7-5 12-12 12H22c-7 0-12-5-12-12z" fill="#e8a317"/>
+  <!-- drip from the lid -->
+  <path d="M27 17h9v6c0 2.5-2 4-4.5 4S27 25.5 27 23z" fill="#e8a317"/>
+  <!-- honeycomb cell -->
+  <path d="M32 38.5l6.5 3.75v7.5L32 53.5l-6.5-3.75v-7.5z" fill="none" stroke="#8a5300" stroke-width="2.4" stroke-linejoin="round"/>
+  <!-- glass highlight -->
+  <path d="M16 26c0-2 1-3.5 3-4" stroke="#fffdf7" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+</svg>
