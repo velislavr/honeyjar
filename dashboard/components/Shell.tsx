@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import Icon from "@/components/Icon";
 import { WINDOWS, WindowContext, useApi, type Window } from "@/lib/api";
+import { AUTHOR } from "@/lib/site";
 
 const NAV = [
   { href: "/", label: "Live" },
@@ -71,6 +72,11 @@ export default function Shell({ children }: { children: ReactNode }) {
       <footer className="foot">
         Live data from internet-facing honeypots. Attacker-supplied URLs and IPs inside payloads are defanged.
         IP geolocation by <a className="link" href="https://db-ip.com">DB-IP</a> · KEV data from CISA · EPSS from FIRST.
+        <br />
+        Built by {AUTHOR.name} ·{" "}
+        <a className="link" href={AUTHOR.linkedin} rel="me noopener" target="_blank">LinkedIn</a> ·{" "}
+        <a className="link" href={AUTHOR.github} rel="me noopener" target="_blank">GitHub</a> ·{" "}
+        <a className="link" href={AUTHOR.repo} rel="noopener" target="_blank">Source</a>
       </footer>
     </WindowContext.Provider>
   );

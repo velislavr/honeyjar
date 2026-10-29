@@ -1,4 +1,7 @@
 import { PageHead } from "@/components/Shell";
+import { AUTHOR, pageMeta } from "@/lib/site";
+
+export const metadata = pageMeta("/about");
 
 const STAGES = [
   { t: "Sensors", d: "Cloud VPSes in several regions expose SSH/Telnet (Cowrie) and a custom HTTP(S) honeypot that impersonates Fortinet, Palo Alto, Ivanti, Citrix, routers, WordPress and more on 10 ports." },
@@ -51,6 +54,19 @@ export default function AboutPage() {
             <li>SSH port-forwarding is disabled, so the honeypot cannot be used as a relay.</li>
             <li>Malware is stored as hashes only; URLs and IPs inside payloads are defanged before display.</li>
           </ul>
+        </section>
+        <section className="card span-12">
+          <div className="card-head"><h2>About the builder</h2></div>
+          <p className="ink2" style={{ margin: "0 0 12px", maxWidth: 760 }}>
+            Honeyjar is built by <strong>{AUTHOR.name}</strong>, {AUTHOR.role.toLowerCase()} who is applying that
+            background to security: the sensors, the ingest and enrichment pipeline, the CVE and ATT&amp;CK detection
+            rules, the deployment and this dashboard. The full source is public.
+          </p>
+          <div className="row" style={{ gap: 18 }}>
+            <a className="link" href={AUTHOR.linkedin} rel="me noopener" target="_blank">LinkedIn</a>
+            <a className="link" href={AUTHOR.github} rel="me noopener" target="_blank">GitHub</a>
+            <a className="link" href={AUTHOR.repo} rel="noopener" target="_blank">Source code</a>
+          </div>
         </section>
       </div>
     </>
