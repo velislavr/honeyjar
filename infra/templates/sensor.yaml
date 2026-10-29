@@ -1,0 +1,64 @@
+#cloud-config
+# Honeyjar SENSOR "${sensor_id}" (${sensor_label}). Ubuntu 24.04 on Azure (B1s / B2ats v2) or an
+# Oracle Always Free AMD micro. Rendered by infra/render.py — paste the rendered file as the VM's
+# "Custom data" (Azure) or "Cloud-init script" (Oracle). Contains secrets: never commit it.
+package_update: true
+packages: [docker.io, docker-compose-v2, wireguard, git, iptables-persistent]
+
+users:
+  - default
+  - name: ops
+    groups: [sudo, docker]
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys: ["${ssh_key}"]
+
+# 1 GB VMs build the HTTP honeypot image more comfortably with a little swap.
+swap:
+  filename: /swapfile
+  size: 1073741824
+
+write_files:
+  # Real SSH moves off 22 so Cowrie can own it. Key-only; the cloud firewall limits 22222 to your IP.
+  - path: /etc/ssh/sshd_config.d/10-honeyjar.conf
+    content: |
+      Port 22222
+      PasswordAuthentication no
+      PermitRootLogin no
+  - path: /etc/wireguard/wg0.conf
+    permissions: "0600"
+    content: |
+${wg_conf}
+  - path: /etc/honeyjar/sensor.env
+    permissions: "0600"
+    content: |
+${sensor_env}
+  - path: /etc/systemd/system/honeyjar-firewall.service
+    content: |
+      [Unit]
+      Description=Honeyjar: honeypot egress containment
+      After=docker.service
+      Requires=docker.service
+      [Service]
+      Type=oneshot
+      Environment=ALLOW_SAMPLE_DOWNLOAD=${allow_sample_download}
+      ExecStart=/opt/honeyjar/sensor/firewall.sh
+      RemainAfterExit=yes
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  # Ubuntu 24.04 starts sshd via socket activation: regenerate the socket for port 22222.
+  - systemctl daemon-reload
+  - systemctl restart ssh.socket || systemctl restart ssh
+  # Oracle images REJECT all inbound but 22 in iptables; allow the new admin port (no-op elsewhere).
+  # Honeypot ports are published by Docker, which handles its own forwarding rules.
+  - iptables -I INPUT -p tcp --dport 22222 -j ACCEPT
+  - netfilter-persistent save
+  - systemctl enable --now wg-quick@wg0
+  - git clone ${repo_url} /opt/honeyjar
+  - cp /etc/honeyjar/sensor.env /opt/honeyjar/sensor/.env
+  - chmod +x /opt/honeyjar/sensor/firewall.sh
+  - systemctl enable --now docker honeyjar-firewall
+  - cd /opt/honeyjar/sensor && docker compose up -d --build
+  - echo "Honeyjar sensor ${sensor_id} (${sensor_label}). Admin SSH is on port 22222." > /etc/motd

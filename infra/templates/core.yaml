@@ -1,0 +1,62 @@
+#cloud-config
+# Honeyjar CORE on Oracle Cloud Always Free (VM.Standard.A1.Flex, Ubuntu 24.04, ARM).
+# Rendered by infra/render.py — paste the rendered file (infra/out/core-user-data.yaml) as the
+# instance's cloud-init script. Contains secrets: never commit the rendered output.
+package_update: true
+packages: [docker.io, docker-compose-v2, wireguard, git, iptables-persistent]
+
+users:
+  - default
+  - name: ops
+    groups: [sudo, docker]
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    ssh_authorized_keys: ["${ssh_key}"]
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/10-honeyjar.conf
+    content: |
+      PasswordAuthentication no
+      PermitRootLogin no
+  - path: /etc/wireguard/wg0.conf
+    permissions: "0600"
+    content: |
+${wg_conf}
+  - path: /etc/honeyjar/core.env
+    permissions: "0600"
+    content: |
+${core_env}
+  # Docker must start after the tunnel exists: the API binds to the WireGuard address.
+  - path: /etc/systemd/system/docker.service.d/10-after-wireguard.conf
+    content: |
+      [Unit]
+      Wants=wg-quick@wg0.service
+      After=wg-quick@wg0.service
+  - path: /etc/systemd/system/honeyjar-core-firewall.service
+    content: |
+      [Unit]
+      Description=Honeyjar: restrict sensors to the ingest API
+      After=docker.service
+      Requires=docker.service
+      [Service]
+      Type=oneshot
+      ExecStart=/opt/honeyjar/core/firewall.sh
+      RemainAfterExit=yes
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  # Oracle's Ubuntu images REJECT everything but SSH in iptables: open web + WireGuard.
+  - iptables -I INPUT -p tcp --dport 80 -j ACCEPT
+  - iptables -I INPUT -p tcp --dport 443 -j ACCEPT
+  - iptables -I INPUT -p udp --dport 51820 -j ACCEPT
+  - netfilter-persistent save
+  - systemctl restart ssh
+  - systemctl enable --now wg-quick@wg0
+  - git clone ${repo_url} /opt/honeyjar
+  - cp /etc/honeyjar/core.env /opt/honeyjar/core/.env
+  - chmod +x /opt/honeyjar/core/firewall.sh /opt/honeyjar/sensor/firewall.sh
+  - systemctl daemon-reload
+  - systemctl enable --now docker honeyjar-core-firewall
+  - cd /opt/honeyjar/core && docker compose --profile prod up -d --build
+  - echo "Honeyjar core. Logs - cd /opt/honeyjar/core && docker compose logs -f" > /etc/motd
