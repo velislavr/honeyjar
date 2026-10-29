@@ -1,0 +1,10 @@
+# Cowrie login policy (user:x:password, first match wins, '/regex/i' allowed).
+# A real weak server accepts weak passwords, not *every* password: bots fingerprint
+# honeypots by logging in with a random string first. So common credentials work,
+# anything else (including random strings) is refused.
+root:x:/^(root|toor|admin|password|passw0rd|p@ssw0rd|123456|1234567|12345678|123456789|1234567890|1234|12345|111111|000000|123123|qwerty|qwerty123|1qaz2wsx|1q2w3e4r|1q2w3e4r5t|abc123|abcd1234|aa123456|admin123|admin@123|root123|root@123|changeme|default|ubuntu|linux|server|test|test123|raspberry|centos|alpine|dietpi|vagrant|user|password1|welcome|welcome1|letmein|master|oracle|calvin|support)$/i
+admin:x:/^(admin|password|1234|12345|123456|12345678|admin123|admin@123|admin1234|pass|default|changeme|123|1111|0000)$/i
+ubuntu:x:/^(ubuntu|password|123456|ubuntu123|admin)$/i
+pi:x:/^(raspberry|raspberrypi|pi|123456)$/i
+deploy:x:/^(deploy|deploy123|password|123456)$/i
+/^(user|test|guest|oracle|postgres|git|ftpuser|support|ftp|mysql|hadoop|steam|minecraft|jenkins|docker|dev|devops|ansible|administrator|tomcat|nagios|zabbix|elastic|ubnt|vyos|centos|debian)$/:x:/^(123456|password|1234|12345|12345678|test|test123|guest|user|oracle|postgres|git|ftp|support|111111|qwerty|changeme|admin|ubnt|vyos|elastic|hadoop|jenkins|docker|minecraft|zabbix|nagios|debian|centos)$/i

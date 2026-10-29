@@ -3,7 +3,9 @@ name: honeyjar-sensor
 
 services:
   cowrie:
-    image: cowrie/cowrie:latest
+    # upstream Cowrie minus its well-known fingerprints (cowrie/Dockerfile)
+    image: ${REGISTRY:-ghcr.io/velislavr}/honeyjar-cowrie:${TAG:-latest}
+    build: ./cowrie
     restart: unless-stopped
     environment:
       COWRIE_HONEYPOT_HOSTNAME: ${COWRIE_HOSTNAME:-web-prod-02}
@@ -15,6 +17,8 @@ services:
       - "${TELNET_PORT:-2323}:2223"
     volumes:
       - cowrie-var:/cowrie/cowrie-git/var
+      # /etc/hostname to match the shell prompt (the stock file says "svr04"); cloud-init writes the real one
+      - ${COWRIE_HOSTNAME_FILE:-./cowrie/hostname}:/cowrie/honeyfs/etc/hostname:ro
     networks: [honeypots]
     read_only: true
     tmpfs: [/tmp]
@@ -30,6 +34,9 @@ services:
     environment:
       HTTP_PORTS: "80,8080,8000,8888,7547,37215,52869"
       HTTPS_PORTS: "443,8443,10443"
+      SERVICE_PORTS: "2375:docker,9200:elasticsearch"
+      REDIS_PORTS: "6379"
+      ADB_PORTS: "5555"
     sysctls:
       net.ipv4.ip_unprivileged_port_start: "0"
     ports:
@@ -41,6 +48,10 @@ services:
       - "${ALT_HTTP_PORTS_BIND:-127.0.0.1:}52869:52869"
       - "${ALT_HTTP_PORTS_BIND:-127.0.0.1:}7547:7547"
       - "${ALT_HTTP_PORTS_BIND:-127.0.0.1:}10443:10443"
+      - "${ALT_HTTP_PORTS_BIND:-127.0.0.1:}2375:2375"     # Docker Engine API
+      - "${ALT_HTTP_PORTS_BIND:-127.0.0.1:}9200:9200"     # Elasticsearch
+      - "${ALT_HTTP_PORTS_BIND:-127.0.0.1:}6379:6379"     # Redis
+      - "${ALT_HTTP_PORTS_BIND:-127.0.0.1:}5555:5555"     # Android Debug Bridge
     volumes:
       - http-logs:/logs
       - http-data:/data
