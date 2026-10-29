@@ -1,0 +1,46 @@
+# ATT&CK for the exposed-service honeypots (Docker API, Redis, Elasticsearch, ADB).
+# Docker API calls arrive as `docker run|exec|pull ...` commands (see normalize.docker_command),
+# Redis and ADB as their raw command lines. Ids shared with linux.yaml add patterns to that technique.
+techniques:
+  - id: T1610
+    name: Deploy Container
+    tactic: execution
+    command: '^docker (run|exec)\b'
+
+  - id: T1611
+    name: Escape to Host
+    tactic: privilege-escalation
+    command: '^docker run\b.*(--privileged|--pid=host|-v /(:|etc\b|root\b|proc\b|var/run/docker\.sock))'
+
+  - id: T1105
+    name: Ingress Tool Transfer
+    tactic: command-and-control
+    command: '^docker pull\b|^(slaveof|replicaof)\s+\S+\s+\d+'
+
+  - id: T1129
+    name: Shared Modules
+    tactic: execution
+    command: '^module\s+load\b'
+
+  - id: T1485
+    name: Data Destruction
+    tactic: impact
+    command: '^(flushall|flushdb)\b'
+
+  - id: T1485
+    name: Data Destruction
+    tactic: impact
+    match:
+      method: '^DELETE$'
+      path: '^/[a-z0-9][^/?]*/?(\?|$)'
+
+  - id: T1213
+    name: Data from Information Repositories
+    tactic: collection
+    match:
+      path: '^/(_cat/indices|_all/_search|_search|[a-z0-9][^/?]*/_search)'
+
+  - id: T1082
+    name: System Information Discovery
+    tactic: discovery
+    command: '^info(\s|$)|\bgetprop\b'

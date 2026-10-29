@@ -1,0 +1,44 @@
+# Exposed-service attacks: Redis, Elasticsearch, Docker Engine API.
+rules:
+  - id: redis-lua-sandbox-escape
+    cve: CVE-2022-0543
+    name: Redis Lua sandbox escape (Debian/Ubuntu packages)
+    cvss: 10.0
+    match:
+      command: '\beval\b.*(package\.loadlib|luaopen_io|io\.popen)'
+
+  - id: es-groovy-sandbox-bypass
+    cve: CVE-2015-1427
+    name: Elasticsearch Groovy scripting sandbox bypass RCE
+    cvss: 9.8
+    match:
+      path: '_search'
+      body: '"script\w*"\s*:.*(forName|getRuntime|ProcessBuilder|\.execute\(\))'
+
+  - id: es-mvel-dynamic-script
+    cve: CVE-2014-3120
+    name: Elasticsearch MVEL dynamic scripting RCE
+    cvss: 6.8
+    match:
+      path: '_search'
+      body: '"script\w*"\s*:.*(import\s+java\.|new\s+java\.(io|util|lang))'
+
+  - id: docker-api-abuse
+    tag: docker-api-abuse
+    name: Unauthenticated Docker Engine API use
+    match:
+      method: '^POST$'
+      path: '^(/v[\d.]+)?/(containers|images|exec|build)\b'
+
+  - id: redis-abuse
+    tag: redis-abuse
+    name: Redis configuration / replication abuse
+    match:
+      command: '^(config\s+set|slaveof|replicaof|module\s+load|flushall)\b'
+
+  - id: ransom-note
+    tag: ransom-note
+    name: Database ransom note
+    match:
+      method: '^(PUT|POST)$'
+      body: '(bitcoin|\bbtc\b).{0,400}(recover|restore|backup|database|data)|(recover|restore|backup).{0,400}(bitcoin|\bbtc\b)'
