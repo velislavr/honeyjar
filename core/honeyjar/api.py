@@ -120,6 +120,24 @@ def since(window: str) -> datetime:
     return datetime.now(timezone.utc) - WINDOWS[window][0]
 
 
+# "all" has no fixed length, so its bucket follows the history that exists: a fixed daily bucket
+# would hand a young honeynet a one-point chart. Pick the finest bucket giving <= 240 points.
+ALL_BUCKETS = [timedelta(minutes=m) for m in (1, 5, 15, 30)] +               [timedelta(hours=h) for h in (1, 2, 6, 12)] + [timedelta(days=d) for d in (1, 7)]
+
+
+def all_bucket(span: timedelta) -> timedelta:
+    return next((b for b in ALL_BUCKETS if span / b <= 240), ALL_BUCKETS[-1])
+
+
+async def series_range(pool, window: str) -> tuple[datetime, timedelta]:
+    """Start and bucket size for a window's time series."""
+    if window != "all":
+        return since(window), WINDOWS[window][1]
+    now = datetime.now(timezone.utc)
+    first = await pool.fetchval("SELECT min(ts) FROM events") or now - timedelta(hours=1)
+    return first - timedelta(seconds=1), all_bucket(now - first)
+
+
 def fill_series(records, bucket: timedelta, start: datetime, keys: tuple[str, ...]) -> list[dict]:
     """Zero-fill a time_bucket series so charts get evenly spaced points."""
     step = int(bucket.total_seconds())
@@ -163,8 +181,7 @@ async def ingest(request: Request):
 @api.get("/stats/overview")
 async def overview(request: Request, window: str = WindowParam):
     pool = request.app.state.pool
-    start = since(window)
-    bucket = WINDOWS[window][1]
+    start, bucket = await series_range(pool, window)
     totals = await pool.fetchrow(
         """SELECT count(*) FILTER (WHERE event_type = ANY($2)) AS attacks,
                   count(*) AS events,
@@ -188,8 +205,6 @@ async def overview(request: Request, window: str = WindowParam):
            FROM events WHERE ts > $1 GROUP BY bucket ORDER BY bucket""",
         start, bucket, list(ATTACK_TYPES),
     )
-    if window == "all":
-        start = series[0]["bucket"] if series else datetime.now(timezone.utc) - timedelta(days=1)
     by_proto = await pool.fetch(
         """SELECT coalesce(proto, honeypot) AS proto, count(*) AS n FROM events
            WHERE ts > $1 AND event_type = ANY($2) GROUP BY 1 ORDER BY n DESC""",
@@ -206,8 +221,7 @@ async def overview(request: Request, window: str = WindowParam):
 @api.get("/stats/cves")
 async def cves(request: Request, window: str = WindowParam, limit: int = Query(40, le=100)):
     pool = request.app.state.pool
-    start = since(window)
-    bucket = WINDOWS[window][1]
+    start, bucket = await series_range(pool, window)
     top = await pool.fetch(
         """SELECT c AS cve, count(*) AS hits, count(DISTINCT src_ip) AS ips,
                   count(DISTINCT country_code) AS countries, min(ts) AS first_seen, max(ts) AS last_seen
@@ -230,8 +244,6 @@ async def cves(request: Request, window: str = WindowParam, limit: int = Query(4
         """SELECT DISTINCT ON (c) c AS cve, http_method, http_path, http_body, command, host(src_ip) AS src_ip
            FROM events, unnest(cves) c WHERE ts > $1 AND c = ANY($2) ORDER BY c, ts DESC""",
         start, ids)}
-    if window == "all":
-        start = min((r["bucket"] for r in spark_rows), default=datetime.now(timezone.utc) - timedelta(days=1))
     out = []
     for r in top:
         s = samples.get(r["cve"])
