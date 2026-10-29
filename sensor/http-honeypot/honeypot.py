@@ -20,12 +20,19 @@ from urllib.parse import parse_qs
 
 from aiohttp import web
 
+import tcp_services
 from personas import ROUTES, default_page
+from service_personas import PORT_PERSONAS
 
 LOG_FILE = Path(os.environ.get("LOG_FILE", "/logs/http.json"))
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
 HTTP_PORTS = [int(p) for p in os.environ.get("HTTP_PORTS", "8080").split(",") if p]
 HTTPS_PORTS = [int(p) for p in os.environ.get("HTTPS_PORTS", "8443").split(",") if p]
+# "2375:docker,9200:elasticsearch": ports whose every request goes to one product persona
+SERVICE_PORTS = {int(p): name for p, _, name in
+                 (x.partition(":") for x in os.environ.get("SERVICE_PORTS", "").split(",") if x)}
+REDIS_PORTS = [int(p) for p in os.environ.get("REDIS_PORTS", "").split(",") if p]
+ADB_PORTS = [int(p) for p in os.environ.get("ADB_PORTS", "").split(",") if p]
 SERVER_HEADER = os.environ.get("SERVER_HEADER", "Apache/2.4.49 (Unix) OpenSSL/1.0.2k-fips PHP/7.4.33")
 MAX_BODY = 64 * 1024
 LOG_BODY = 8 * 1024
@@ -82,13 +89,17 @@ async def handle(request: web.Request) -> web.StreamResponse:
     path = request.raw_path
 
     persona, resp = "default", None
-    for pattern, name, responder in ROUTES:
-        if pattern.search(path):
-            persona, resp = name, responder(request, body)
-            break
-    if resp is None:
-        resp = default_page(request, body)
-    resp.headers.setdefault("Server", SERVER_HEADER)
+    port_persona = request["persona"] = SERVICE_PORTS.get(sock[1]) if sock else None
+    if port_persona:
+        persona, resp = port_persona, PORT_PERSONAS[port_persona](request, body)
+    else:
+        for pattern, name, responder in ROUTES:
+            if pattern.search(path):
+                persona, resp = name, responder(request, body)
+                break
+        if resp is None:
+            resp = default_page(request, body)
+        resp.headers.setdefault("Server", SERVER_HEADER)
 
     record = {
         "ts": dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -147,19 +158,29 @@ def make_self_signed(cert_path: Path, key_path: Path):
     cert_path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
 
 
+async def strip_server_header(request: web.Request, response: web.StreamResponse):
+    """Elasticsearch sends no Server header; without this aiohttp would announce itself.
+    (on_response_prepare runs after aiohttp adds its default header, before it is written.)"""
+    if request.get("persona") == "elasticsearch":
+        response.headers.popall("Server", None)
+
+
 async def main():
     setup_logging()
     app = web.Application(client_max_size=MAX_BODY * 2)
+    app.on_response_prepare.append(strip_server_header)
     app.router.add_route("*", "/{tail:.*}", handle)
     runner = web.AppRunner(app, access_log=None, handle_signals=True)
     await runner.setup()
-    for port in HTTP_PORTS:
+    for port in [*HTTP_PORTS, *SERVICE_PORTS]:
         await web.TCPSite(runner, "0.0.0.0", port).start()
     if HTTPS_PORTS:
         ctx = tls_context()
         for port in HTTPS_PORTS:
             await web.TCPSite(runner, "0.0.0.0", port, ssl_context=ctx).start()
-    logging.info("listening http=%s https=%s", HTTP_PORTS, HTTPS_PORTS)
+    await tcp_services.start(lambda rec: events.info(json.dumps(rec, ensure_ascii=False)), REDIS_PORTS, ADB_PORTS)
+    logging.info("listening http=%s https=%s services=%s redis=%s adb=%s",
+                 HTTP_PORTS, HTTPS_PORTS, SERVICE_PORTS, REDIS_PORTS, ADB_PORTS)
     await asyncio.Event().wait()
 
 
