@@ -1,6 +1,6 @@
 #cloud-config
 # Honeyjar SENSOR "${sensor_id}" (${sensor_label}). Ubuntu 24.04 on Azure (B1s / B2pts v2) or an
-# Oracle Always Free AMD micro. Rendered by infra/render.py — paste the rendered file as the VM's
+# Oracle Always Free AMD micro. Rendered by infra/render.py - paste the rendered file as the VM's
 # "Custom data" (Azure) or "Cloud-init script" (Oracle). Contains secrets: never commit it.
 package_update: true
 packages: [docker.io, docker-compose-v2, wireguard, git, iptables-persistent]

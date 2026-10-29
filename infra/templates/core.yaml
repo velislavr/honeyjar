@@ -1,6 +1,6 @@
 #cloud-config
 # Honeyjar CORE: Ubuntu 24.04 on Azure (Standard_B2ats_v2, 1 GB) or any bigger VM.
-# Rendered by infra/render.py — paste the rendered file (infra/out/core-user-data.yaml) as the VM's
+# Rendered by infra/render.py - paste the rendered file (infra/out/core-user-data.yaml) as the VM's
 # "Custom data". Contains secrets: never commit the rendered output.
 package_update: true
 packages: [docker.io, docker-compose-v2, wireguard, git]
