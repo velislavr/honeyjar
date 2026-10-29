@@ -5,8 +5,10 @@ field listed in a rule's `match` must hit. Fields:
   method, path (URL-decoded), raw_path, headers ("name: value" lines),
   ua, body, command, username, password, any (all of the above joined).
 
-ATT&CK rules (rules/attack/*.yaml) match a regex against shell commands, or
-fire on an event condition (`event: login_failed | login_success`).
+ATT&CK rules (rules/attack/*.yaml) match a regex against shell commands (`command`),
+match request fields like a CVE rule (`match`), or fire on an event condition
+(`event: login_failed | login_success`). An id may appear in several files; its
+patterns are combined.
 """
 import re
 from dataclasses import dataclass
@@ -35,7 +37,8 @@ class Technique:
     id: str
     name: str
     tactic: str
-    command: re.Pattern | None
+    commands: list[re.Pattern]
+    matches: list[dict[str, re.Pattern]]
     event: str | None
 
 
@@ -62,11 +65,16 @@ class RuleEngine:
                 ))
         for f in sorted((rules_dir / "attack").glob("*.yaml")):
             for t in yaml.safe_load(f.read_text(encoding="utf-8"))["techniques"]:
-                self.techniques[t["id"]] = Technique(
-                    id=t["id"], name=t["name"], tactic=t["tactic"],
-                    command=re.compile(t["command"], re.I) if t.get("command") else None,
-                    event=t.get("event"),
-                )
+                tech = self.techniques.setdefault(t["id"], Technique(
+                    id=t["id"], name=t["name"], tactic=t["tactic"], commands=[], matches=[], event=None))
+                if t.get("command"):
+                    tech.commands.append(re.compile(t["command"], re.I))
+                if t.get("match"):
+                    unknown = set(t["match"]) - FIELDS
+                    if unknown:
+                        raise ValueError(f"{f.name}:{t['id']}: unknown match fields {unknown}")
+                    tech.matches.append({k: re.compile(v, re.I | re.S) for k, v in t["match"].items()})
+                tech.event = tech.event or t.get("event")
 
     @property
     def cve_catalog(self) -> dict[str, dict]:
@@ -107,12 +115,15 @@ class RuleEngine:
 
     def map_techniques(self, ev: Event) -> list[str]:
         out = []
+        fields = None
         for t in self.techniques.values():
-            if t.command is not None and ev.command and t.command.search(ev.command):
-                out.append(t.id)
-            elif t.event == "login_failed" and ev.login_success is False:
-                out.append(t.id)
-            elif t.event == "login_success" and ev.login_success is True:
+            hit = bool(ev.command) and any(p.search(ev.command) for p in t.commands)
+            if not hit and t.matches:
+                fields = fields or self.fields_for(ev)
+                hit = any(all(fields.get(k) and p.search(fields[k]) for k, p in m.items()) for m in t.matches)
+            if not hit and t.event:
+                hit = (t.event == "login_failed" and ev.login_success is False) or                       (t.event == "login_success" and ev.login_success is True)
+            if hit:
                 out.append(t.id)
         return out
 
