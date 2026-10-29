@@ -1,9 +1,9 @@
 #cloud-config
-# Honeyjar CORE on Oracle Cloud Always Free (VM.Standard.A1.Flex, Ubuntu 24.04, ARM).
-# Rendered by infra/render.py — paste the rendered file (infra/out/core-user-data.yaml) as the
-# instance's cloud-init script. Contains secrets: never commit the rendered output.
+# Honeyjar CORE: Ubuntu 24.04 on Azure (Standard_B2ats_v2, 1 GB) or any bigger VM.
+# Rendered by infra/render.py — paste the rendered file (infra/out/core-user-data.yaml) as the VM's
+# "Custom data". Contains secrets: never commit the rendered output.
 package_update: true
-packages: [docker.io, docker-compose-v2, wireguard, git, iptables-persistent]
+packages: [docker.io, docker-compose-v2, wireguard, git]
 
 users:
   - default
@@ -12,6 +12,11 @@ users:
     shell: /bin/bash
     sudo: "ALL=(ALL) NOPASSWD:ALL"
     ssh_authorized_keys: ["${ssh_key}"]
+
+# The stack idles around 350 MB; swap absorbs feed refreshes and image pulls on a 1 GB VM.
+swap:
+  filename: /swapfile
+  size: 2147483648
 
 write_files:
   - path: /etc/ssh/sshd_config.d/10-honeyjar.conf
@@ -46,11 +51,7 @@ ${core_env}
       WantedBy=multi-user.target
 
 runcmd:
-  # Oracle's Ubuntu images REJECT everything but SSH in iptables: open web + WireGuard.
-  - iptables -I INPUT -p tcp --dport 80 -j ACCEPT
-  - iptables -I INPUT -p tcp --dport 443 -j ACCEPT
-  - iptables -I INPUT -p udp --dport 51820 -j ACCEPT
-  - netfilter-persistent save
+  # Inbound filtering is the cloud firewall's job (Azure NSG: 80, 443, udp/51820, SSH from your IP).
   - systemctl restart ssh
   - systemctl enable --now wg-quick@wg0
   - git clone ${repo_url} /opt/honeyjar
@@ -58,5 +59,7 @@ runcmd:
   - chmod +x /opt/honeyjar/core/firewall.sh /opt/honeyjar/sensor/firewall.sh
   - systemctl daemon-reload
   - systemctl enable --now docker honeyjar-core-firewall
-  - cd /opt/honeyjar/core && docker compose --profile prod up -d --build
+  # Pull the CI-built images; fall back to building on the VM if they aren't published (needs >2 GB RAM).
+  - cd /opt/honeyjar/core && (docker compose --profile prod pull || docker compose --profile prod build)
+  - cd /opt/honeyjar/core && docker compose --profile prod up -d
   - echo "Honeyjar core. Logs - cd /opt/honeyjar/core && docker compose logs -f" > /etc/motd

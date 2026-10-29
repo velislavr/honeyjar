@@ -1,15 +1,15 @@
-"""Render cloud-init user-data for an Oracle Cloud core + Azure / Oracle sensors.
+"""Render cloud-init user-data for the Honeyjar core and sensors (Azure, or Oracle for extra sensors).
 
 Generates every secret once (WireGuard keys, sensor ingest tokens, database password), keeps them
 in infra/out/state.json (gitignored), and writes one paste-ready user-data file per machine.
 
     pip install cryptography
-    # 1. core first (its public IP is only known after Oracle creates it)
+    # 1. core first (its public IP is only known once the VM exists)
     python infra/render.py --domain honeyjar.tech --repo https://github.com/<you>/honeyjar \\
         --ssh-key ~/.ssh/id_ed25519.pub \\
         --sensor us1=eastus --sensor sg1=southeastasia [--sensor fra1=eu-frankfurt-1]
     # 2. sensors, once the core has a public IP
-    python infra/render.py ... --core-ip <oracle-public-ip>
+    python infra/render.py ... --core-ip <core-public-ip>
 
 Re-running is safe: existing keys and tokens are reused; new --sensor names get new ones.
 """
@@ -134,6 +134,8 @@ def main():
         "API_BIND=10.66.0.1:8000",
         "DASHBOARD_BIND=127.0.0.1:3001",
         "TRUST_PROXY=1",
+        "DB_TUNE_MEMORY=384MB",  # sized for a 1 GB VM; raise on a bigger core
+        "REDIS_MAXMEMORY=128mb",
         "ABUSEIPDB_KEY=",
         "MALWAREBAZAAR_KEY=",
     ])
@@ -156,7 +158,7 @@ def main():
                 sensor_env=block(env), repo_url=a.repo, allow_sample_download="0" if a.no_sample_download else "1"))
             written.append(f"sensor-{name}-user-data.yaml")
     elif state["sensors"]:
-        print("note: pass --core-ip <oracle public ip> to also render the sensors")
+        print("note: pass --core-ip <core public ip> to also render the sensors")
 
     print("wrote", ", ".join(f"infra/out/{w}" for w in written))
     print("sensors in core config:", ", ".join(f"{n} ({s['label']})" for n, s in state["sensors"].items()) or "none")

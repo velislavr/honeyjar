@@ -1,5 +1,5 @@
 #cloud-config
-# Honeyjar SENSOR "${sensor_id}" (${sensor_label}). Ubuntu 24.04 on Azure (B1s / B2ats v2) or an
+# Honeyjar SENSOR "${sensor_id}" (${sensor_label}). Ubuntu 24.04 on Azure (B1s / B2pts v2) or an
 # Oracle Always Free AMD micro. Rendered by infra/render.py — paste the rendered file as the VM's
 # "Custom data" (Azure) or "Cloud-init script" (Oracle). Contains secrets: never commit it.
 package_update: true
@@ -60,5 +60,6 @@ runcmd:
   - cp /etc/honeyjar/sensor.env /opt/honeyjar/sensor/.env
   - chmod +x /opt/honeyjar/sensor/firewall.sh
   - systemctl enable --now docker honeyjar-firewall
-  - cd /opt/honeyjar/sensor && docker compose up -d --build
+  - cd /opt/honeyjar/sensor && (docker compose pull || docker compose build)
+  - cd /opt/honeyjar/sensor && docker compose up -d
   - echo "Honeyjar sensor ${sensor_id} (${sensor_label}). Admin SSH is on port 22222." > /etc/motd
