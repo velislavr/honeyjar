@@ -236,6 +236,13 @@ rules:
     match:
       path: '^/cgi-bin/;'
 
+  - id: cisco-iosxe-webui
+    cve: CVE-2023-20198
+    name: Cisco IOS XE web UI privilege escalation
+    cvss: 10.0
+    match:
+      path: '/webui_wsma_https?'
+
   - id: hikvision-weblanguage
     cve: CVE-2021-36260
     name: Hikvision IP camera command injection

