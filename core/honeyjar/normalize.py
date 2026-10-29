@@ -1,5 +1,8 @@
 """Turn raw honeypot log records into common `Event`s."""
+import json
+import re
 from datetime import datetime, timezone
+from urllib.parse import parse_qs, urlsplit
 
 from .schemas import Event
 
@@ -44,8 +47,72 @@ def normalize(raw: dict, sensor_id: str) -> Event | None:
     if honeypot == "cowrie":
         return _cowrie(raw, sensor_id)
     if honeypot == "http":
-        return _http(raw, sensor_id)
+        # The HTTP honeypot container also runs the raw-TCP services (Redis, ADB) and logs to the same file.
+        return _tcp(raw, sensor_id) if raw.get("service") in TCP_SERVICES else _http(raw, sensor_id)
     return None
+
+
+TCP_SERVICES = {"redis", "adb"}
+TCP_EVENTS = {"connect": "connect", "command": "command", "login": "login_attempt", "download": "download"}
+
+
+def _tcp(raw: dict, sensor_id: str) -> Event | None:
+    event_type = TCP_EVENTS.get(raw.get("event", ""))
+    if event_type is None or not raw.get("src_ip"):
+        return None
+    ev = Event(
+        ts=_ts(raw.get("ts")),
+        sensor_id=sensor_id,
+        honeypot=raw["service"],
+        event_type=event_type,
+        src_ip=raw["src_ip"],
+        proto=raw["service"],
+        src_port=_int(raw.get("src_port")),
+        dst_port=_int(raw.get("dst_port")),
+        session_id=_clip(raw.get("session"), 64),
+        command=_clip(raw.get("command")),
+    )
+    if event_type == "login_attempt":
+        ev.username = _clip(raw.get("username"), 256)
+        ev.password = _clip(raw.get("password"), 256)
+        ev.login_success = bool(raw.get("success"))
+    elif event_type == "download":
+        ev.payload_hash = raw.get("sha256")
+        ev.extra = {k: raw[k] for k in ("path", "size") if raw.get(k) is not None}
+    return ev
+
+
+DOCKER_API = re.compile(r"^(?:/v[\d.]+)?/(containers/create|containers/[^/]+/exec|images/create)")
+
+
+def docker_command(method: str | None, path: str | None, body: str | None) -> str | None:
+    """Rewrite a Docker Engine API call as the equivalent CLI command, so shell rules apply to it."""
+    m = DOCKER_API.match(path or "")
+    if method != "POST" or not m:
+        return None
+    if m.group(1) == "images/create":
+        q = parse_qs(urlsplit(path).query)
+        image = q.get("fromImage", ["?"])[0]
+        tag = q.get("tag", [""])[0]
+        return f"docker pull {image}{':' + tag if tag else ''}"
+    try:
+        spec = json.loads(body or "{}")
+    except ValueError:
+        return None
+    if not isinstance(spec, dict):
+        return None
+
+    def words(v) -> str:
+        return " ".join(map(str, v)) if isinstance(v, list) else str(v or "")
+
+    cmd = " ".join(filter(None, [words(spec.get("Entrypoint")), words(spec.get("Cmd"))]))
+    if m.group(1).endswith("/exec"):
+        return f"docker exec {m.group(1).split('/')[1][:12]} {cmd}".strip()
+    host = spec.get("HostConfig") or {}
+    flags = ["--privileged"] if host.get("Privileged") else []
+    flags += [f"--pid={host['PidMode']}"] if host.get("PidMode") else []
+    flags += [f"-v {b}" for b in (host.get("Binds") or [])[:6]]
+    return " ".join(["docker run", *flags, str(spec.get("Image") or "?"), cmd]).strip()
 
 
 def _cowrie(raw: dict, sensor_id: str) -> Event | None:
@@ -112,4 +179,6 @@ def _http(raw: dict, sensor_id: str) -> Event | None:
         ev.extra["cred_source"] = creds.get("source")
     if raw.get("persona"):
         ev.extra["persona"] = raw["persona"]
+    if raw.get("persona") == "docker":
+        ev.command = _clip(docker_command(ev.http_method, ev.http_path, raw.get("body")))
     return ev

