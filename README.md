@@ -64,8 +64,9 @@ Tests: `cd core && pip install -r requirements-dev.txt && pytest`.
 
 ## Deploy
 
-The cheap reference deployment uses a **core on Oracle Cloud Always Free** (ARM, free) and **sensors on
-Azure for Students** (free B1s / B2ats v2 VM hours), plus an optional Oracle Always Free micro sensor. `infra/render.py` generates every secret
+The reference deployment runs entirely on **Azure for Students** free VM hours: the core on a 1 GB
+`B2ats_v2` and sensors on `B1s` / `B2pts_v2`. GitHub Actions builds multi-arch images to GHCR, so the
+small VMs only pull them. An Oracle Always Free micro can add a sensor. `infra/render.py` generates every secret
 (WireGuard keys, sensor tokens, DB password) and renders paste-ready cloud-init for each machine.
 **Step-by-step: [DEPLOY.md](DEPLOY.md).**
 
