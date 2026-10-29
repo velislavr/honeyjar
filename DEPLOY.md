@@ -31,9 +31,9 @@ people's logs. The core runs no honeypot, so it is the least sensitive part.
 1. Push this repo to GitHub as a **public** repo; the VMs `git clone` it at boot. Secrets are never in
    the repo: they live in `infra/out/`, which is gitignored.
 2. **Publish the images.** The push runs the *images* workflow (repo → *Actions*, ~10–15 min the first
-   time). Then make each package public, because the VMs pull without logging in: GitHub → your profile →
-   *Packages* → `honeyjar-core`, `honeyjar-dashboard`, `honeyjar-http` → *Package settings* →
-   *Change visibility* → **Public**.
+   time). The VMs pull without logging in, so the packages must be public. Packages from a public repo
+   usually are; if not: GitHub → your profile → *Packages* → `honeyjar-core`, `honeyjar-dashboard`,
+   `honeyjar-http` → *Package settings* → *Change visibility* → **Public**.
 3. Have an SSH key (`ssh-keygen -t ed25519` if you don't), and `pip install cryptography`.
 
 ## 1. Render the core config
