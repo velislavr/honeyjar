@@ -153,7 +153,7 @@ async def ingest(request: Request):
     for rec in records:
         if isinstance(rec, dict):
             pipe.xadd(config.RAW_STREAM, {"sensor": sensor, "data": orjson.dumps(rec)},
-                      maxlen=2_000_000, approximate=True)
+                      maxlen=200_000, approximate=True)
     await pipe.execute()
     return {"accepted": len(records)}
 

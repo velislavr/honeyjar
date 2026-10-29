@@ -149,7 +149,9 @@ async def consume(pool: asyncpg.Pool, r: aioredis.Redis, enricher: Enricher):
                 if ev.event_type in LIVE_TYPES:
                     pipe.publish(config.LIVE_CHANNEL, orjson.dumps(live_payload(ev)))
             await pipe.execute()
-        await r.xack(config.RAW_STREAM, GROUP, *[mid for mid, _ in msgs])
+        ids = [mid for mid, _ in msgs]
+        # Stored in Postgres now; drop them from the stream so Redis memory stays flat.
+        await r.pipeline().xack(config.RAW_STREAM, GROUP, *ids).xdel(config.RAW_STREAM, *ids).execute()
         log.info("processed %d records -> %d events", len(msgs), len(events))
 
 
