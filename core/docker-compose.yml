@@ -1,7 +1,9 @@
 # Core: ingest + enrichment + storage + API (+ dashboard, added in dashboard/).
 name: honeyjar-core
 
+# Production pulls the images CI publishes to GHCR (.github/workflows/images.yml); `--build` builds locally.
 x-app: &app
+  image: ${REGISTRY:-ghcr.io/velislavr}/honeyjar-core:${TAG:-latest}
   build: .
   restart: unless-stopped
   env_file: .env
@@ -24,6 +26,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: honeyjar
       TIMESCALEDB_TELEMETRY: "off"
+      TS_TUNE_MEMORY: ${DB_TUNE_MEMORY:-}   # small VMs: tune Postgres for a share of RAM, not all of it
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U honeyjar"]
@@ -34,7 +37,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "noeviction"]
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "${REDIS_MAXMEMORY:-512mb}", "--maxmemory-policy", "noeviction"]
     volumes: [redisdata:/data]
 
   api:
@@ -52,6 +55,7 @@ services:
     command: ["python", "-m", "honeyjar.feeds", "loop"]
 
   dashboard:
+    image: ${REGISTRY:-ghcr.io/velislavr}/honeyjar-dashboard:${TAG:-latest}
     build:
       context: ../dashboard
       args:

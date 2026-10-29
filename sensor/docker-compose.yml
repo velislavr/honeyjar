@@ -24,6 +24,7 @@ services:
     pids_limit: 256
 
   http:
+    image: ${REGISTRY:-ghcr.io/velislavr}/honeyjar-http:${TAG:-latest}
     build: ./http-honeypot
     restart: unless-stopped
     environment:
