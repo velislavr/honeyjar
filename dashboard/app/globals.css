@@ -182,13 +182,13 @@ table.data .num { text-align: right; font-variant-numeric: tabular-nums; white-s
 .feed-row .who { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .feed-row .what { color: var(--ink-2); font-family: var(--mono); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 3px; }
 
-/* The globe sits in a dark "jar" in both themes: honey glows best on dark. */
-.globe-wrap { color-scheme: dark; position: relative; height: 100%; min-height: clamp(340px, 60vw, 540px); border-radius: calc(var(--r-lg) - 6px); overflow: hidden;
-  background: radial-gradient(ellipse at 50% 45%, #3a2810 0%, #1a1208 45%, #0d0905 75%); }
+/* The globe sits in a jar: dark amber at night, pale honey glass by day (palettes in AttackGlobe.tsx). */
+.globe-wrap { position: relative; height: 100%; min-height: clamp(340px, 60vw, 540px); border-radius: calc(var(--r-lg) - 6px); overflow: hidden;
+  background: radial-gradient(ellipse at 50% 45%, light-dark(#fffaf0, #3a2810) 0%, light-dark(#f7ead0, #1a1208) 45%, light-dark(#efdcb4, #0d0905) 75%); }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend-hive svg { width: 15px; height: 15px; display: block; }
-.globe-wrap .legend { position: absolute; left: 14px; bottom: 12px; z-index: 2; background: rgba(18, 13, 7, .72); backdrop-filter: blur(6px); padding: 7px 12px; border-radius: 999px; color: #e8d9bb; }
+.globe-wrap .legend { position: absolute; left: 14px; bottom: 12px; z-index: 2; background: light-dark(rgba(255, 250, 240, .82), rgba(18, 13, 7, .72)); backdrop-filter: blur(6px); padding: 7px 12px; border-radius: 999px; color: light-dark(#5a4630, #e8d9bb); }
 
 /* ---------- terminal (session replay) ---------- */
 .term { background: #17110a; color: #eadcc0; font-family: var(--mono); font-size: 13px; border-radius: var(--r-md); padding: 16px 18px; overflow-x: auto; border: 1px solid rgba(232,163,23,.15); }
