@@ -32,7 +32,8 @@ STATE = OUT / "state.json"
 REGIONS = {
     # Azure
     "eastus": ("Virginia", 37.37, -79.82), "eastus2": ("Virginia", 36.67, -78.39),
-    "centralus": ("Iowa", 41.59, -93.60), "westus2": ("Washington", 47.23, -119.85),
+    "centralus": ("Iowa", 41.59, -93.60), "northcentralus": ("Illinois", 41.88, -87.63),
+    "westus2": ("Washington", 47.23, -119.85), "norwayeast": ("Oslo", 59.91, 10.75),
     "westus3": ("Arizona", 33.45, -112.07), "canadacentral": ("Toronto", 43.65, -79.38),
     "brazilsouth": ("São Paulo", -23.55, -46.63), "northeurope": ("Ireland", 53.35, -6.26),
     "westeurope": ("Netherlands", 52.37, 4.90), "uksouth": ("London", 51.51, -0.13),
