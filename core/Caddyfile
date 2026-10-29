@@ -9,9 +9,10 @@
 		-Server
 	}
 	# Sensor ingest is only reachable over WireGuard, never through the public proxy.
-	@ingest path /api/ingest /api/ingest/*
-	respond @ingest 404
-
+	# (A bare `respond` would run after `handle`, so it has to be its own, more specific handle block.)
+	handle /api/ingest* {
+		respond 404
+	}
 	handle /api/* {
 		reverse_proxy api:8000
 	}
