@@ -10,7 +10,8 @@ live dashboard with a 3D attack globe.
  ┌──────────────────────────────┐   WireGuard    ┌───────────────────────────────────────────────┐
  │ Cowrie   SSH 22 / Telnet 23  │──┐            │ FastAPI /api/ingest ─► Redis Stream             │
  │ HTTP(S) honeypot  10 ports   │  ├─ Vector ──►│   enrichment worker (GeoIP · CVE · ATT&CK)      │
- │ egress firewalled            │──┘  (disk     │   ─► TimescaleDB ─► REST + WebSocket ─► Next.js │
+ │ Docker · ES · Redis · ADB    │  │            │   ─► TimescaleDB ─► REST + WebSocket ─► Next.js │
+ │ egress firewalled            │──┘  (disk     │                                                 │
  └──────────────────────────────┘     buffer)   │ feeds: CISA KEV · EPSS · DB-IP   Caddy (TLS)   │
                                                  └───────────────────────────────────────────────┘
 ```
@@ -31,10 +32,19 @@ live dashboard with a 3D attack globe.
 - **`sensor/http-honeypot`**: an aiohttp honeypot written for this project. It answers on 10 ports with
   product personas (FortiGate, GlobalProtect, Ivanti, Citrix, Exchange, GPON/Huawei/TP-Link routers, Hikvision,
   WordPress, Tomcat, phpMyAdmin, Spring Actuator, leaked `.env`/`.git`) so exploit chains reach their payload
-  stage. It captures form and Basic-auth credentials.
-- **`core/rules/cve/*.yaml`**: 40 CVE signatures plus 11 recon classes (field-scoped regex: path, raw path,
+  stage. It captures form and Basic-auth credentials. The same container runs the exposed services that
+  cryptojacking crews hunt for: an unauthenticated **Docker Engine API** (2375), an open **Elasticsearch 7**
+  (9200), **Redis 5** (6379, raw RESP) and an unsecured **Android Debug Bridge** (5555). They play along with
+  container escapes, cron/rogue-master/Lua-escape attacks and `adb push` worms without executing anything or
+  connecting out; pushed files are hashed, never stored.
+- **`sensor/cowrie`**: Cowrie minus its well-known fingerprints. Instead of the stock Debian box with hostname
+  `svr04`, user `phil` and an accept-everything login, it is an Ubuntu 22.04 server with 8 EPYC cores, 16 GB,
+  real-looking users, bash history and app secrets as breadcrumbs. It accepts weak passwords but rejects the
+  random strings bots use to detect honeypots.
+- **`core/rules/cve/*.yaml`**: 43 CVE signatures plus 14 recon/abuse classes (field-scoped regex: path, raw path,
   headers, UA, body, command). Every rule is unit-tested against a real exploit request.
-- **`core/rules/attack/*.yaml`**: 31 MITRE ATT&CK technique mappings for post-login shell activity.
+- **`core/rules/attack/*.yaml`**: 36 MITRE ATT&CK technique mappings for shell activity and service abuse
+  (Docker API calls are normalized to `docker run …` commands so the same rules apply).
 - **`core/honeyjar/worker.py`**: a Redis consumer-group worker. It normalizes Cowrie and HTTP records into one
   schema, carries session context, enriches events, bulk-`COPY`s them into TimescaleDB and publishes live events.
 - **`core/honeyjar/feeds.py`**: daily sync of the CISA KEV catalog, EPSS scores and DB-IP Lite geolocation.
@@ -49,7 +59,7 @@ Requires Docker.
 cp core/.env.example core/.env          # set POSTGRES_PASSWORD
 cp sensor/.env.example sensor/.env
 docker compose -f core/docker-compose.yml up -d --build      # db, redis, api, worker, feeds, dashboard
-docker compose -f sensor/docker-compose.yml up -d --build    # cowrie, http honeypot, vector
+docker compose -f sensor/docker-compose.yml up -d --build    # cowrie, http + service honeypots, vector
 ```
 
 - Dashboard at http://localhost:3001 (or `cd dashboard && npm run dev` on :3000). API docs at http://localhost:8000/api/docs.

@@ -103,7 +103,7 @@ Inbound port rules:
 | Priority | Port(s) | Protocol | Source | Purpose |
 |---|---|---|---|---|
 | 100 | `22222` | TCP | **My IP address** | your admin SSH |
-| 110 | `22,23,80,443,7547,8080,8443,10443,37215,52869` | TCP | Any | the honeypots |
+| 110 | `22,23,80,443,2375,5555,6379,7547,8080,8443,9200,10443,37215,52869` | TCP | Any | the honeypots (SSH/Telnet, web, Docker API, ADB, Redis, Elasticsearch) |
 
 If your home IP changes, edit rule 100 on each VM.
 
