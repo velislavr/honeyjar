@@ -153,10 +153,12 @@ def main():
                 "CORE_URL=http://10.66.0.1:8000", f"SENSOR_TOKEN={s['token']}",
                 "SSH_PORT=22", "TELNET_PORT=23", "HTTP_PORT=80", "HTTPS_PORT=443",
                 "ALT_HTTP_PORTS_BIND=0.0.0.0:", f"COWRIE_HOSTNAME={s['hostname']}",
+                "COWRIE_HOSTNAME_FILE=/etc/honeyjar/cowrie-hostname",
             ])
             (OUT / f"sensor-{name}-user-data.yaml").write_text(render(
                 "sensor.yaml", sensor_id=name, sensor_label=s["label"], ssh_key=ssh_key, wg_conf=block(wg),
-                sensor_env=block(env), repo_url=a.repo, allow_sample_download="0" if a.no_sample_download else "1"))
+                sensor_env=block(env), hostname=s["hostname"], repo_url=a.repo,
+                allow_sample_download="0" if a.no_sample_download else "1"))
             written.append(f"sensor-{name}-user-data.yaml")
     elif state["sensors"]:
         print("note: pass --core-ip <core public ip> to also render the sensors")

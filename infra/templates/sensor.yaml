@@ -29,6 +29,10 @@ write_files:
     permissions: "0600"
     content: |
 ${wg_conf}
+  # The fake shell's /etc/hostname, matching its prompt (mounted read-only into Cowrie).
+  - path: /etc/honeyjar/cowrie-hostname
+    content: |
+      ${hostname}
   - path: /etc/honeyjar/sensor.env
     permissions: "0600"
     content: |

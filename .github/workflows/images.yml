@@ -4,7 +4,7 @@ name: images
 on:
   push:
     branches: [master]
-    paths: [core/**, dashboard/**, sensor/http-honeypot/**, .github/workflows/images.yml]
+    paths: [core/**, dashboard/**, sensor/http-honeypot/**, sensor/cowrie/**, .github/workflows/images.yml]
   workflow_dispatch:
 
 permissions:
@@ -21,6 +21,7 @@ jobs:
           - { name: honeyjar-core, context: core }
           - { name: honeyjar-dashboard, context: dashboard }
           - { name: honeyjar-http, context: sensor/http-honeypot }
+          - { name: honeyjar-cowrie, context: sensor/cowrie }
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
