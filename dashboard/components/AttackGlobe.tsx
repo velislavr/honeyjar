@@ -1,7 +1,7 @@
 "use client";
 
 import { cellToChildren, cellToLatLng, getRes0Cells, latLngToCell } from "h3-js";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
 import { MeshPhongMaterial } from "three";
 import { FAMILY_LABEL, family, useReducedMotion, type LiveEvent } from "@/lib/api";
@@ -105,7 +105,23 @@ function useDarkTheme() {
   return dark;
 }
 
-export default function AttackGlobe({ events, sensors, paused = false }: { events: LiveEvent[]; sensors: Sensor[]; paused?: boolean }) {
+type Props = { events: LiveEvent[]; sensors: Sensor[]; paused?: boolean };
+
+/**
+ * Next keeps visited routes alive in a hidden <Activity>. Hiding runs effect cleanups, and
+ * react-globe.gl's cleanup tears its scene down for good, so the planet was gone on the way back.
+ * Mount the scene only while the page is visible: every return gets a fresh one.
+ */
+export default function AttackGlobe(props: Props) {
+  const [shown, setShown] = useState(false);
+  useLayoutEffect(() => {
+    setShown(true);
+    return () => setShown(false);
+  }, []);
+  return shown ? <GlobeScene {...props} /> : <div className="globe-wrap" />;
+}
+
+function GlobeScene({ events, sensors, paused = false }: Props) {
   const reduced = useReducedMotion();
   const still = reduced || paused;
   const wrap = useRef<HTMLDivElement>(null);
