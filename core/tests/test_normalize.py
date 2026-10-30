@@ -1,10 +1,12 @@
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from honeyjar.config import RULES_DIR
 from honeyjar.defang import defang
 from honeyjar.normalize import normalize
 from honeyjar.rules import RuleEngine
+from honeyjar.schemas import Event, scrub
 from honeyjar.worker import Enricher
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -78,3 +80,21 @@ def test_tcp_service_records():
                            "path": "/data/local/tmp/x", "size": 1024}, "s1")
     assert (dl.event_type, dl.payload_hash, dl.extra["size"]) == ("download", "ab" * 32, 1024)
     assert normalize(base | {"event": "bogus"}, "s1") is None
+
+
+def test_nul_bytes_are_kept_visible_not_stored_raw():
+    # Postgres rejects NUL in text and jsonb; one such login once crash-looped the worker.
+    enricher = Enricher(RuleEngine(RULES_DIR), geo=None)
+    raw = {"honeypot": "cowrie", "eventid": "cowrie.login.failed", "timestamp": "2026-10-30T10:58:00Z",
+           "src_ip": "203.0.113.9", "session": "s1", "username": "root\x00", "password": "\x00\x00admin"}
+    ev = enricher.enrich(raw, "t")
+    assert ev.username == "root\\x00" and ev.password == "\\x00\\x00admin"
+    for v in (ev.username, ev.password, *map(str, ev.extra.values())):
+        assert "\x00" not in v
+
+
+def test_scrub_reaches_nested_extra():
+    ev = Event(ts=datetime.now(timezone.utc), sensor_id="t", honeypot="http", event_type="http_request",
+               src_ip="203.0.113.9", http_path="/a\x00b", extra={"k\x00": ["v\x00"]})
+    scrub(ev)
+    assert ev.http_path == "/a\\x00b" and ev.extra == {"k\\x00": ["v\\x00"]}

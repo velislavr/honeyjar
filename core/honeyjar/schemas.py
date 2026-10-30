@@ -1,5 +1,5 @@
 """Common event schema every honeypot log line is normalized into."""
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import datetime
 
 EVENT_TYPES = (
@@ -56,3 +56,22 @@ DB_COLUMNS = (
     "country_code", "country", "city", "lat", "lon", "asn", "as_org",
     "cves", "tags", "techniques", "extra",
 )
+
+
+def _no_nul(v):
+    if isinstance(v, str):
+        return v.replace("\x00", "\\x00")
+    if isinstance(v, list):
+        return [_no_nul(x) for x in v]
+    if isinstance(v, dict):
+        return {_no_nul(k): _no_nul(x) for k, x in v.items()}
+    return v
+
+
+def scrub(ev: "Event") -> "Event":
+    """Postgres text and jsonb cannot hold NUL bytes, and attackers send them: keep each as a visible \\x00."""
+    for f in fields(ev):
+        v = getattr(ev, f.name)
+        if isinstance(v, (str, list, dict)):
+            setattr(ev, f.name, _no_nul(v))
+    return ev

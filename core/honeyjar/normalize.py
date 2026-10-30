@@ -38,7 +38,7 @@ def _int(value) -> int | None:
 def _clip(value, limit: int = MAX_TEXT) -> str | None:
     if value is None:
         return None
-    s = str(value).replace("\x00", "\x00")
+    s = str(value).replace("\x00", "\\x00")
     return s[:limit]
 
 

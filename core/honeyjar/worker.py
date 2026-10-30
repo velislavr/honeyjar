@@ -14,7 +14,7 @@ from .defang import defang
 from .geo import GeoLookup
 from .normalize import normalize
 from .rules import RuleEngine
-from .schemas import LIVE_TYPES, Event
+from .schemas import LIVE_TYPES, Event, scrub
 
 log = logging.getLogger("worker")
 
@@ -35,6 +35,7 @@ class Enricher:
         ev = normalize(raw, sensor_id)
         if ev is None:
             return None
+        scrub(ev)
         if ev.session_id:
             if ev.event_type == "connect":
                 self.sessions[ev.session_id] = (ev.proto, ev.dst_port)

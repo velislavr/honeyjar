@@ -52,5 +52,16 @@ def event_record(ev: Event) -> tuple:
 async def insert_events(pool: asyncpg.Pool, events: list[Event]):
     if not events:
         return
+    records = [event_record(e) for e in events]
     async with pool.acquire() as conn:
-        await conn.copy_records_to_table("events", records=[event_record(e) for e in events], columns=DB_COLUMNS)
+        try:
+            await conn.copy_records_to_table("events", records=records, columns=DB_COLUMNS)
+        except asyncpg.DataError:
+            # One unstorable value fails the whole COPY, and the retried batch would fail forever:
+            # store row by row and drop only the rows Postgres rejects.
+            log.exception("batch insert failed, retrying %d events one by one", len(records))
+            for rec in records:
+                try:
+                    await conn.copy_records_to_table("events", records=[rec], columns=DB_COLUMNS)
+                except asyncpg.DataError as e:
+                    log.error("dropped unstorable event from %s: %s", rec[DB_COLUMNS.index("src_ip")], e)
