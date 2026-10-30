@@ -18,6 +18,8 @@ type Hive = { lat: number; lng: number; label: string };
 const RES = 2;
 const BEE_MS = 2600; // one bee-dash travels the whole arc in this time
 const MAX_ARCS = 40;
+const PER_SENSOR = 12; // recent arcs remembered per sensor
+const PER_IP = 2; // per attacker, per sensor
 const MAX_RIPPLES = 30;
 
 // The planet as a honeycomb: land cells are capped honey, ocean cells are empty wax comb.
@@ -188,27 +190,43 @@ function GlobeScene({ events, sensors, paused = false }: Props) {
     );
   }, [land]);
 
-  // Arc and ripple objects are cached per event so globe.gl keeps existing meshes and only
-  // builds the new ones, instead of rebuilding all of them on every live update.
-  const arcCache = useRef(new Map<string, Arc>());
+  // A few worm-infected hosts can send 95% of all traffic to one or two sensors, which would push
+  // every other sensor's arcs off the globe within seconds. So each sensor keeps its own recent
+  // arcs (one attacker at most PER_IP times), and the globe takes the newest from each in turn.
+  // Arc objects are reused across updates so globe.gl only builds meshes for new ones.
+  const recent = useRef(new Map<string, { key: string; ip: string; arc: Arc }[]>());
+  const seen = useRef(new Set<string>());
   const fallbackSensor = sensors.find((s) => s.lat != null);
   const arcs = useMemo(() => {
-    const next = new Map<string, Arc>();
-    for (const e of events) {
+    const bySensor = recent.current;
+    for (const e of [...events].reverse()) { // oldest first, so the newest ends up at the front
       if (e.lat == null || e.lon == null) continue;
-      const key = `${e.ts}|${e.src_ip}|${e.event_type}`;
-      next.set(key, arcCache.current.get(key) ?? {
-        startLat: e.lat,
-        startLng: e.lon,
-        endLat: e.sensor_lat ?? fallbackSensor?.lat ?? 50,
-        endLng: e.sensor_lon ?? fallbackSensor?.lon ?? 8,
-        color: colors[family(e)],
-        gap: Math.random(),
+      const key = `${e.sensor_id}|${e.ts}|${e.src_ip}|${e.event_type}`;
+      if (seen.current.has(key)) continue;
+      seen.current.add(key);
+      const list = bySensor.get(e.sensor_id) ?? [];
+      const sameIp = list.filter((x) => x.ip === e.src_ip);
+      if (sameIp.length >= PER_IP) list.splice(list.indexOf(sameIp[sameIp.length - 1]), 1);
+      list.unshift({
+        key, ip: e.src_ip,
+        arc: {
+          startLat: e.lat,
+          startLng: e.lon,
+          endLat: e.sensor_lat ?? fallbackSensor?.lat ?? 50,
+          endLng: e.sensor_lon ?? fallbackSensor?.lon ?? 8,
+          color: colors[family(e)],
+          gap: Math.random(),
+        },
       });
-      if (next.size >= MAX_ARCS) break;
+      bySensor.set(e.sensor_id, list.slice(0, PER_SENSOR));
     }
-    arcCache.current = next;
-    return [...next.values()];
+    if (seen.current.size > 5000) seen.current = new Set([...bySensor.values()].flat().map((x) => x.key));
+    const lists = [...bySensor.values()];
+    const out: Arc[] = [];
+    for (let i = 0; out.length < MAX_ARCS && lists.some((l) => i < l.length); i++) {
+      for (const l of lists) if (i < l.length && out.length < MAX_ARCS) out.push(l[i].arc);
+    }
+    return out;
   }, [events, colors, fallbackSensor]);
 
   const rippleCache = useRef(new Map<string, Ripple>());
