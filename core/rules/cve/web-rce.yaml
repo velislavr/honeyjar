@@ -299,3 +299,296 @@ rules:
     cvss: 9.8
     match:
       any: '(exec\(java\.lang\.runtime|valuereference=exec)'
+
+  # --- Java app servers and CI/CD ---
+  - id: weblogic-console-traversal
+    cve: CVE-2020-14882
+    name: Oracle WebLogic console auth bypass
+    cvss: 9.8
+    match:
+      path: '/console/[^?]*\.\./console\.portal'
+
+  - id: weblogic-wls-wsat
+    cve: CVE-2017-10271
+    name: Oracle WebLogic wls-wsat XMLDecoder RCE
+    cvss: 7.5
+    match:
+      path: '/wls-wsat/coordinatorporttype'
+      method: '^POST$'
+
+  - id: weblogic-async
+    cve: CVE-2019-2725
+    name: Oracle WebLogic _async deserialization RCE
+    cvss: 9.8
+    match:
+      path: '/_async/asyncresponseservice'
+      method: '^POST$'
+
+  - id: jenkins-descriptor-groovy
+    cve: CVE-2018-1000861
+    name: Jenkins Stapler routing RCE
+    cvss: 9.8
+    match:
+      path: '/securityrealm/user/[^/]+/descriptorbyname/'
+
+  - id: teamcity-auth-bypass
+    cve: CVE-2024-27198
+    name: JetBrains TeamCity authentication bypass
+    cvss: 9.8
+    match:
+      path: '[?&]jsp=/app/rest/|/app/rest/[^?]*;\.jsp'
+
+  - id: teamcity-rpc2-token
+    cve: CVE-2023-42793
+    name: JetBrains TeamCity RPC2 token auth bypass
+    cvss: 9.8
+    match:
+      path: '/app/rest/users/[^/]+/tokens/rpc2'
+
+  - id: gitlab-exiftool
+    cve: CVE-2021-22205
+    name: GitLab ExifTool DjVu upload RCE
+    cvss: 10.0
+    match:
+      path: '/uploads/user'
+      body: 'AT&TFORM|DJVM'
+
+  - id: spring-cloud-gateway
+    cve: CVE-2022-22947
+    name: Spring Cloud Gateway actuator SpEL injection
+    cvss: 10.0
+    match:
+      path: '/actuator/gateway/routes'
+      body: '#\{'
+
+  - id: spring-cloud-function
+    cve: CVE-2022-22963
+    name: Spring Cloud Function routing-expression SpEL RCE
+    cvss: 9.8
+    match:
+      headers: 'spring\.cloud\.function\.routing-expression'
+
+  - id: ofbiz-auth-bypass
+    cve: CVE-2023-51467
+    name: Apache OFBiz requirePasswordChange auth bypass
+    cvss: 9.8
+    match:
+      path: 'requirepasswordchange=y'
+
+  - id: ofbiz-programexport
+    cve: CVE-2024-38856
+    name: Apache OFBiz ProgramExport Groovy RCE
+    cvss: 9.8
+    match:
+      path: '/webtools/control/[^?]*programexport'
+
+  - id: nacos-auth-bypass
+    cve: CVE-2021-29441
+    name: Alibaba Nacos User-Agent auth bypass
+    cvss: 9.8
+    match:
+      path: '/nacos/v1/auth/users'
+      ua: 'nacos-server'
+
+  - id: sap-netweaver-upload
+    cve: CVE-2025-31324
+    name: SAP NetWeaver Visual Composer unauthenticated upload
+    cvss: 10.0
+    match:
+      path: '/developmentserver/metadatauploader'
+
+  # --- Collaboration, CMS and web apps ---
+  - id: confluence-widget-connector
+    cve: CVE-2019-3396
+    name: Confluence Widget Connector template injection
+    cvss: 9.8
+    match:
+      path: '/rest/tinymce/1/macro/preview'
+
+  - id: confluence-setup-reset
+    cve: CVE-2023-22515
+    name: Confluence broken access control (setup re-run)
+    cvss: 10.0
+    match:
+      path: 'bootstrapstatusprovider\.applicationconfig\.setupcomplete|/setup/setupadministrator\.action'
+
+  - id: sharepoint-toolshell
+    cve: CVE-2025-53770
+    name: SharePoint ToolPane deserialization RCE (ToolShell)
+    cvss: 9.8
+    match:
+      path: '/_layouts/1[56]/toolpane\.aspx'
+
+  - id: drupalgeddon2
+    cve: CVE-2018-7600
+    name: Drupal Form API render-array RCE (Drupalgeddon2)
+    cvss: 9.8
+    match:
+      any: '#(post_render|pre_render|lazy_builder)'
+
+  - id: vbulletin-widget-php
+    cve: CVE-2019-16759
+    name: vBulletin widget_php pre-auth RCE
+    cvss: 9.8
+    match:
+      any: 'widgetconfig\[code\]'
+
+  - id: vbulletin-tabbedcontainer
+    cve: CVE-2020-17496
+    name: vBulletin tabbed container widget RCE
+    cvss: 9.8
+    match:
+      any: 'widget_tabbedcontainer_tab_panel'
+
+  - id: craftcms-conditions
+    cve: CVE-2023-41892
+    name: Craft CMS conditions/render RCE
+    cvss: 10.0
+    match:
+      any: 'action=conditions/render'
+
+  - id: joomla-config-leak
+    cve: CVE-2023-23752
+    name: Joomla API improper access check (config leak)
+    cvss: 5.3
+    match:
+      path: '/api/index\.php/v1/(config/application|users)\?.*?public=true'
+
+  - id: glpi-htmlawed
+    cve: CVE-2022-35914
+    name: GLPI htmLawed test page command injection
+    cvss: 9.8
+    match:
+      path: 'htmlawedtest\.php'
+
+  - id: thinkphp-lang-pearcmd
+    cve: CVE-2022-47945
+    name: ThinkPHP multi-language LFI to RCE (pearcmd)
+    cvss: 9.8
+    match:
+      path: '[?&]lang=(\.\./)+[^&]*pearcmd'
+
+  - id: metabase-setup-validate
+    cve: CVE-2023-38646
+    name: Metabase setup token pre-auth RCE
+    cvss: 9.8
+    match:
+      path: '/api/setup/validate'
+
+  - id: papercut-setup-bypass
+    cve: CVE-2023-27350
+    name: PaperCut MF/NG SetupCompleted auth bypass
+    cvss: 9.8
+    match:
+      path: 'service=page/setupcompleted'
+
+  - id: langflow-validate-code
+    cve: CVE-2025-3248
+    name: Langflow validate/code unauthenticated RCE
+    cvss: 9.8
+    match:
+      path: '/api/v1/validate/code'
+      method: '^POST$'
+
+  - id: crushftp-ssti
+    cve: CVE-2024-4040
+    name: CrushFTP template injection / sandbox escape
+    cvss: 10.0
+    match:
+      any: '<include>\s*/'
+
+  - id: rejetto-hfs-template
+    cve: CVE-2024-23692
+    name: Rejetto HFS 2.x template injection RCE
+    cvss: 9.8
+    match:
+      path: '\{\.exec\|'
+
+  - id: apache-mod-proxy-ssrf
+    cve: CVE-2021-40438
+    name: Apache mod_proxy unix-socket SSRF
+    cvss: 9.0
+    match:
+      path: 'unix:[a-z]{100,}\|'
+
+  # --- VPN and edge appliances ---
+  - id: cisco-asa-traversal
+    cve: CVE-2020-3452
+    name: Cisco ASA/FTD web services file read
+    cvss: 7.5
+    match:
+      path: '/[+ ]cscot[+ ]/(translation-table|oem-customization).*?\.\./'
+
+  - id: checkpoint-file-read
+    cve: CVE-2024-24919
+    name: Check Point Security Gateway arbitrary file read
+    cvss: 8.6
+    match:
+      path: '/clients/mycrl'
+      body: 'acshell/'
+
+  - id: citrix-bleed-2
+    cve: CVE-2025-5777
+    name: Citrix NetScaler memory overread (CitrixBleed 2)
+    cvss: 9.3
+    match:
+      path: '/p/u/doauthentication\.do'
+      method: '^POST$'
+
+  - id: fortiweb-path-traversal
+    cve: CVE-2025-64446
+    name: FortiWeb API path traversal to admin creation
+    cvss: 9.1
+    match:
+      path: '/api/v2\.0/.*?\.\./.*?cgi-bin/fwbcgi'
+
+  - id: ivanti-epmm-auth-bypass
+    cve: CVE-2023-35078
+    name: Ivanti EPMM unauthenticated API access
+    cvss: 10.0
+    match:
+      path: '/mifs/aad/api/v2/'
+
+  # --- Routers, NAS and cameras (botnet loaders) ---
+  - id: dlink-hnap-soapaction
+    cve: CVE-2015-2051
+    name: D-Link HNAP SOAPAction command injection
+    cvss: 9.8
+    match:
+      headers: 'soapaction:[^\n]*hnap1/[^\n]*(`|\$\(|;)'
+
+  - id: dlink-nas-sharing
+    cve: CVE-2024-3273
+    name: D-Link NAS nas_sharing.cgi command injection
+    cvss: 9.8
+    match:
+      path: '/cgi-bin/nas_sharing\.cgi.*?system='
+
+  - id: dlink-dns-system-mgr
+    cve: CVE-2020-25506
+    name: D-Link DNS-320 system_mgr.cgi command injection
+    cvss: 9.8
+    match:
+      path: '/cgi-bin/system_mgr\.cgi'
+
+  - id: zyxel-viewlog
+    cve: CVE-2017-18368
+    name: Zyxel P660HN ViewLog.asp command injection
+    cvss: 9.8
+    match:
+      path: '/cgi-bin/viewlog\.asp'
+
+  - id: tenda-usbunload
+    cve: CVE-2020-10987
+    name: Tenda AC15 setUsbUnload command injection
+    cvss: 9.8
+    match:
+      path: '/goform/setusbunload'
+
+  - id: avtech-factory-brightness
+    cve: CVE-2024-7029
+    name: AVTECH IP camera brightness command injection
+    cvss: 8.8
+    match:
+      path: '/cgi-bin/supervisor/factory\.cgi'
+      any: 'brightness='

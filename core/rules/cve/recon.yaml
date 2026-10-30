@@ -4,7 +4,7 @@ rules:
     tag: secret-file-probe
     name: .env / config secret file probe
     match:
-      path: '/(\.env(\.\w+)?|config\.json|\.aws/credentials|wp-config\.php\.(bak|old|save)|\.npmrc|\.docker/config\.json)(\?|$)'
+      path: '/([\w-]*\.env(\.\w+)?|config\.json|\.aws/(credentials|config)|wp-config\.php\.(bak|old|save)|\.npmrc|\.docker/config\.json|\.dockercfg|\.git-credentials|\.ssh/id_(rsa|dsa|ecdsa|ed25519)|appsettings(\.\w+)?\.json|parameters\.yml|configuration\.php|web\.config|secrets?\.(json|ya?ml))(\?|$)'
 
   - id: git-exposure
     tag: vcs-exposure
@@ -29,7 +29,7 @@ rules:
     tag: admin-panel-probe
     name: Database / admin panel discovery
     match:
-      path: '/(phpmyadmin|pma|myadmin|adminer(\.php)?|manager/html|solr/admin|actuator)(/|$|\?)'
+      path: '/(\w*php-?my-?admin[\w.-]*|phpmy|pma(homme)?|myadmin|adminer(\.php)?|manager/html|solr/admin|actuator)(/|$|\?)|/(sql|mysql|db)/([\w-]+/)?index\.php'
 
   - id: webshell-probe
     tag: webshell-probe
@@ -66,3 +66,33 @@ rules:
     name: Generic SQL injection probe
     match:
       any: "(union\\s+(all\\s+)?select|'\\s*or\\s+'?1'?\\s*=\\s*'?1|sleep\\(\\d+\\)|benchmark\\(\\d+)"
+
+  - id: mcp-server-probe
+    tag: mcp-server-probe
+    name: AI agent / MCP server discovery
+    match:
+      path: '^/(api/)?(mcp|sse)(/|$|\?)'
+
+  - id: open-proxy-probe
+    tag: proxy-probe
+    name: Open proxy check (absolute-URL request)
+    match:
+      raw_path: '^https?://'
+
+  - id: vpn-portal-recon
+    tag: vpn-portal-recon
+    name: VPN / edge appliance login portal fingerprinting
+    match:
+      path: '/([+ ]cscoe[+ ]/logon\.html|remote/login|dana-na/auth/url_default/welcome\.cgi|global-protect/login\.esp|vpn/index\.html|sslvpn_logon\.shtml)'
+
+  - id: tr064-ntp-injection
+    tag: tr064-injection
+    name: TR-064 NewNTPServer command injection (Mirai)
+    match:
+      body: 'newntpserver\d?>[^<]*(`|\$\(|;)'
+
+  - id: pearcmd-lfi
+    tag: php-lfi
+    name: PHP pearcmd.php LFI-to-write gadget
+    match:
+      path: '(config-create.*pearcmd|pearcmd.*config-create)|/pearcmd(\.php)?(&|\?)'
