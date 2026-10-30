@@ -40,7 +40,7 @@ export default function AboutPage() {
         <section className="card span-6">
           <div className="card-head"><h2>Detection</h2></div>
           <ul className="ink2" style={{ margin: 0, paddingLeft: 18 }}>
-            <li>40+ CVE signatures modelled on public PoCs and observed exploit traffic, each unit-tested with a positive payload and benign negatives.</li>
+            <li>85 CVE signatures modelled on public PoCs and observed exploit traffic, each unit-tested with a positive payload and benign negatives.</li>
             <li>Every match is cross-referenced with the CISA KEV catalog (exploited in the wild, ransomware use) and the EPSS exploit-probability score.</li>
             <li>30+ MITRE ATT&CK technique mappings for post-login shell activity: discovery, persistence, defense evasion, resource hijacking.</li>
             <li>Recon classification: secret-file hunting, VCS exposure, webshell probes, scanner fingerprints.</li>

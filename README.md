@@ -41,7 +41,7 @@ live dashboard with a 3D attack globe.
   `svr04`, user `phil` and an accept-everything login, it is an Ubuntu 22.04 server with 8 EPYC cores, 16 GB,
   real-looking users, bash history and app secrets as breadcrumbs. It accepts weak passwords but rejects the
   random strings bots use to detect honeypots.
-- **`core/rules/cve/*.yaml`**: 43 CVE signatures plus 14 recon/abuse classes (field-scoped regex: path, raw path,
+- **`core/rules/cve/*.yaml`**: 85 CVE signatures plus 19 recon/abuse classes (field-scoped regex: path, raw path,
   headers, UA, body, command). Every rule is unit-tested against a real exploit request.
 - **`core/rules/attack/*.yaml`**: 36 MITRE ATT&CK technique mappings for shell activity and service abuse
   (Docker API calls are normalized to `docker run …` commands so the same rules apply).
