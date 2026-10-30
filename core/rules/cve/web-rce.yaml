@@ -243,6 +243,13 @@ rules:
     match:
       path: '/webui_wsma_https?'
 
+  - id: react2shell
+    cve: CVE-2025-55182
+    name: React Server Components / Next.js RCE (React2Shell)
+    cvss: 10.0
+    match:
+      body: '\$\d+:(__proto__|constructor):'
+
   - id: hikvision-weblanguage
     cve: CVE-2021-36260
     name: Hikvision IP camera command injection
