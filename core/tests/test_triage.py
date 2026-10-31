@@ -256,3 +256,11 @@ def test_track_scores_closed_sessions_now_and_caps_busy_sources(monkeypatch):
     assert r.z["s|a"] == 0
     assert r.z["p|s1|2.2.2.2"] == now  # fresh: due after IDLE_SECONDS of silence
     assert r.z["p|s1|9.9.9.9"] <= now - triage.IDLE_SECONDS  # over MAX_SPAN: due on the next sweep
+
+
+def test_fingerprint_ignores_per_bot_hex_markers():
+    a = triage.summarize(session_rows())
+    b = json.loads(json.dumps(a))
+    a["commands"].append(r"/bin/busybox wget;/bin/busybox echo -ne '\x54\x46\x4c\x54\x5a\x5a'")
+    b["commands"].append(r"/bin/busybox wget;/bin/busybox echo -ne '\x4a\x57\x4f\x59\x59\x4f'")
+    assert triage.fingerprint(a) == triage.fingerprint(b)

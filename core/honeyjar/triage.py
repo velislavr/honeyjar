@@ -132,6 +132,8 @@ async def track(r: aioredis.Redis, events: list[Event]):
 _IP = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b")
 _URL = re.compile(r"\b[a-z][a-z0-9+.-]*://\S+", re.I)
 _NOISE = re.compile(r"\b[0-9a-f]{8,}\b|\b\d{4,}\b", re.I)
+# Botnets tag each infection with a random marker, e.g. busybox echo -ne '\x54\x46\x4c\x54\x5a\x5a'
+_ESCAPES = re.compile(r"(?:\\x[0-9a-f]{2})+", re.I)
 
 
 def _clip(text: str | None, n: int = 200) -> str | None:
@@ -169,7 +171,7 @@ def summarize(rows: list[dict]) -> dict:
 def fingerprint(f: dict) -> str:
     """Stable hash of what the session *did*, ignoring IPs, URLs and random tokens."""
     def norm(s: str) -> str:
-        return _NOISE.sub("N", _IP.sub("IP", _URL.sub("URL", s.lower()))).strip()
+        return _NOISE.sub("N", _IP.sub("IP", _URL.sub("URL", _ESCAPES.sub("ESC", s.lower())))).strip()
     parts = f["honeypot"] + [norm(c or "") for c in f["commands"]] + [norm(h) for h in f["http_requests"]]
     parts += [f"login:{min(f['login_successes'], 1)}", f"dl:{len(f['downloads'])}"]
     return hashlib.sha256("\n".join(parts).encode()).hexdigest()[:32]
