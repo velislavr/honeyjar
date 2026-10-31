@@ -211,3 +211,48 @@ def test_keyless_client_paces_calls_and_retries_empty_bodies(monkeypatch):
     v = run(go())
     assert v.source == "jev" and headers == [None, None]
     assert sleeps[0] == 5 and any(s > 50 for s in sleeps[1:])  # backoff, then the pacing gap
+
+
+class TrackRedis:
+    def __init__(self):
+        self.z, self.h = {}, {}
+
+    async def zcard(self, k):
+        return len(self.z)
+
+    async def hmget(self, k, keys):
+        return [self.h.get(x) for x in keys]
+
+    async def zadd(self, k, mapping):
+        self.z.update(mapping)
+
+    def pipeline(self):
+        outer = self
+
+        class Pipe:
+            def hsetnx(self, k, f, v):
+                outer.h.setdefault(f, str(v))
+
+            async def execute(self):
+                return []
+        return Pipe()
+
+
+def test_track_scores_closed_sessions_now_and_caps_busy_sources(monkeypatch):
+    from datetime import datetime, timezone
+    from honeyjar.schemas import Event
+    now = 1_800_000_000.0
+    monkeypatch.setattr(triage.time, "time", lambda: now)
+    ts = lambda t: datetime.fromtimestamp(t, timezone.utc)  # noqa: E731
+    r = TrackRedis()
+    r.h["p|s1|9.9.9.9"] = str(now - 3600)  # a scanner that has been busy for an hour
+    events = [
+        Event(ts=ts(now - 5), sensor_id="s1", honeypot="cowrie", event_type="connect", src_ip="1.1.1.1", session_id="a"),
+        Event(ts=ts(now - 1), sensor_id="s1", honeypot="cowrie", event_type="session_closed", src_ip="1.1.1.1", session_id="a"),
+        Event(ts=ts(now), sensor_id="s1", honeypot="http", event_type="http_request", src_ip="2.2.2.2"),
+        Event(ts=ts(now), sensor_id="s1", honeypot="http", event_type="http_request", src_ip="9.9.9.9"),
+    ]
+    run(triage.track(r, events))
+    assert r.z["s|a"] == 0
+    assert r.z["p|s1|2.2.2.2"] == now  # fresh: due after IDLE_SECONDS of silence
+    assert r.z["p|s1|9.9.9.9"] <= now - triage.IDLE_SECONDS  # over MAX_SPAN: due on the next sweep

@@ -34,6 +34,7 @@ log = logging.getLogger(__name__)
 ACTIVE = "triage:active"  # zset: session key -> last activity (epoch); 0 = closed, judge now
 STARTS = "triage:start"   # hash: session key -> first activity (epoch)
 IDLE_SECONDS = 600
+MAX_SPAN = 1800
 SWEEP_SECONDS = 15
 MAX_ACTIVE = 100_000
 CACHE_TTL = 7 * 86400
@@ -98,15 +99,32 @@ def session_key(ev: Event) -> str:
 
 
 async def track(r: aioredis.Redis, events: list[Event]):
-    """Record activity per session; a closed Cowrie session is scored 0 so the next sweep judges it."""
+    """Record activity per session; a closed Cowrie session is scored 0 so the next sweep judges it.
+
+    A source that never pauses for IDLE_SECONDS (a busy scanner) is judged after MAX_SPAN anyway:
+    its score is capped so it falls due then, and its next requests start a new pseudo-session.
+    """
     if not events or await r.zcard(ACTIVE) >= MAX_ACTIVE:
         return
+    last: dict[str, tuple[float, bool]] = {}
     pipe = r.pipeline()
     for ev in events:
         key = session_key(ev)
-        pipe.hsetnx(STARTS, key, ev.ts.timestamp())
-        pipe.zadd(ACTIVE, {key: 0 if ev.event_type == "session_closed" else time.time()})
+        if key not in last:
+            pipe.hsetnx(STARTS, key, ev.ts.timestamp())
+        closed = ev.event_type == "session_closed" or last.get(key, (0, False))[1]
+        last[key] = (ev.ts.timestamp(), closed)
     await pipe.execute()
+    keys = list(last)
+    starts = await r.hmget(STARTS, keys)
+    now = time.time()
+    scores = {}
+    for key, start in zip(keys, starts):
+        if last[key][1]:
+            scores[key] = 0
+        else:
+            scores[key] = min(now, float(start or now) + MAX_SPAN - IDLE_SECONDS)
+    await r.zadd(ACTIVE, scores)
 
 
 # ---------------------------------------------------------------- features

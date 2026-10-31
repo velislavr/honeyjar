@@ -422,10 +422,18 @@ async def triage_stats(request: Request, window: str = WindowParam):
 @api.get("/triage/queue")
 async def triage_queue(request: Request, window: str = WindowParam, limit: int = Query(50, le=200),
                        all_sessions: bool = Query(False, alias="all")):
-    """Sessions worth a human's time: escalated or high/critical, newest first."""
+    """Distinct behaviours worth a human's time (escalated or high/critical), newest first.
+
+    Botnets replay one script thousands of times, so sessions are grouped by fingerprint: one row per
+    behaviour with its latest session, how many sessions and source IPs showed it.
+    """
     res = await request.app.state.pool.fetch(
-        f"""SELECT {VERDICT_COLS} FROM session_verdicts
-            WHERE ended_at > $1 AND ($3 OR escalate OR severity IN ('high', 'critical'))
+        f"""WITH v AS (SELECT * FROM session_verdicts
+                       WHERE ended_at > $1 AND ($3 OR escalate OR severity IN ('high', 'critical'))),
+                 g AS (SELECT fingerprint, count(*) AS sessions, count(DISTINCT src_ip) AS ips FROM v GROUP BY 1),
+                 latest AS (SELECT DISTINCT ON (fingerprint) {VERDICT_COLS}, fingerprint FROM v
+                            ORDER BY fingerprint, ended_at DESC)
+            SELECT latest.*, g.sessions, g.ips FROM latest JOIN g USING (fingerprint)
             ORDER BY ended_at DESC LIMIT $2""", since(window), limit, all_sessions)
     return {"window": window, "sessions": rows(res)}
 
