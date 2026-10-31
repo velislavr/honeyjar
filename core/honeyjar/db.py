@@ -5,7 +5,7 @@ from dataclasses import astuple, fields
 import asyncpg
 import orjson
 
-from . import config
+from . import config, rollups
 from .schemas import DB_COLUMNS, Event
 
 log = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ async def create_pool(retries: int = 30) -> asyncpg.Pool:
 
 
 async def apply_schema(pool: asyncpg.Pool):
-    sql = config.SCHEMA_FILE.read_text(encoding="utf-8")
+    sql = config.SCHEMA_FILE.read_text(encoding="utf-8") + rollups.ddl()
     async with pool.acquire() as conn:
         await conn.execute("SELECT pg_advisory_lock($1)", _SCHEMA_LOCK)
         try:

@@ -4,6 +4,7 @@ Everything is mounted under /api so a reverse proxy can forward one prefix.
 /api/ingest must only be reachable from sensors (WireGuard); the proxy blocks it publicly.
 """
 import asyncio
+import functools
 import ipaddress
 import logging
 import time
@@ -18,6 +19,7 @@ from fastapi.responses import JSONResponse, ORJSONResponse
 
 from . import config, db
 from .defang import defang
+from .rollups import COMMANDS, CREDS, HTTP, IPS, PORTS, TAGS, TECHNIQUES, Rollup
 from .rules import RuleEngine
 
 log = logging.getLogger("api")
@@ -120,6 +122,42 @@ def since(window: str) -> datetime:
     return datetime.now(timezone.utc) - WINDOWS[window][0]
 
 
+def source(rollup: Rollup, window: str) -> tuple[str, datetime]:
+    """What a stats query reads for a window, and from when. The last hour reads raw events, since
+    one hourly bucket would be most of it; longer windows read the hourly rollup."""
+    start = since(window)
+    if WINDOWS[window][0] <= timedelta(hours=1):
+        return rollup.raw, start
+    return rollup.view, start.replace(minute=0, second=0, microsecond=0)
+
+
+def total(col: str, alias: str | None = None) -> str:
+    return f"coalesce(sum({col}), 0)::bigint AS {alias or col}"
+
+
+# Every viewer polls every stats panel, so identical requests arrive in bursts. Keep each answer
+# for a while (longer for windows that barely move) and let concurrent misses share one query.
+CACHE_TTL = {"1h": 10, "24h": 30, "7d": 120, "30d": 300, "all": 300}
+_cache: dict[tuple, tuple[float, asyncio.Future]] = {}
+
+
+def cached(fn):
+    @functools.wraps(fn)
+    async def wrapper(request: Request, **params):
+        key = (fn.__name__, *sorted(params.items()))
+        hit = _cache.get(key)
+        if hit and hit[0] > time.monotonic():
+            return await asyncio.shield(hit[1])
+        fut = asyncio.ensure_future(fn(request, **params))
+        _cache[key] = (time.monotonic() + CACHE_TTL.get(params.get("window"), 30), fut)
+        try:
+            return await asyncio.shield(fut)
+        except Exception:
+            _cache.pop(key, None)
+            raise
+    return wrapper
+
+
 # "all" has no fixed length, so its bucket follows the history that exists: a fixed daily bucket
 # would hand a young honeynet a one-point chart. Pick the finest bucket giving <= 240 points.
 ALL_BUCKETS = [timedelta(minutes=m) for m in (1, 5, 15, 30)] +               [timedelta(hours=h) for h in (1, 2, 6, 12)] + [timedelta(days=d) for d in (1, 7)]
@@ -179,37 +217,26 @@ async def ingest(request: Request):
 # ---------------------------------------------------------------- stats
 
 @api.get("/stats/overview")
+@cached
 async def overview(request: Request, window: str = WindowParam):
     pool = request.app.state.pool
     start, bucket = await series_range(pool, window)
+    ips, ips_from = source(IPS, window)
+    ports, ports_from = source(PORTS, window)
     totals = await pool.fetchrow(
-        """SELECT count(*) FILTER (WHERE event_type = ANY($2)) AS attacks,
-                  count(*) AS events,
-                  count(DISTINCT src_ip) AS unique_ips,
-                  count(DISTINCT country_code) AS countries,
-                  count(*) FILTER (WHERE event_type = 'login_attempt' OR username IS NOT NULL) AS login_attempts,
-                  count(*) FILTER (WHERE login_success) AS login_successes,
-                  count(*) FILTER (WHERE event_type = 'command') AS commands,
-                  count(*) FILTER (WHERE cardinality(cves) > 0) AS exploit_attempts,
-                  count(*) FILTER (WHERE event_type = 'download') AS downloads
-           FROM events WHERE ts > $1""",
-        start, list(ATTACK_TYPES),
-    )
+        f"""SELECT {total("attacks")}, {total("events")},
+                   count(DISTINCT src_ip) AS unique_ips, count(DISTINCT country_code) AS countries,
+                   {total("login_attempts")}, {total("login_successes")}, {total("commands")},
+                   {total("exploits", "exploit_attempts")}, {total("downloads")}
+            FROM {ips} r WHERE bucket >= $1""", ips_from)
     distinct_cves = await pool.fetchval(
-        "SELECT count(DISTINCT c) FROM events, unnest(cves) c WHERE ts > $1", start)
+        "SELECT count(DISTINCT c) FROM events, unnest(cves) c WHERE ts > $1 AND cardinality(cves) > 0", start)
     series = await pool.fetch(
-        """SELECT time_bucket($2::interval, ts) AS bucket,
-                  count(*) FILTER (WHERE event_type = ANY($3)) AS attacks,
-                  count(*) FILTER (WHERE cardinality(cves) > 0) AS exploits,
-                  count(*) FILTER (WHERE event_type = 'login_attempt') AS logins
-           FROM events WHERE ts > $1 GROUP BY bucket ORDER BY bucket""",
-        start, bucket, list(ATTACK_TYPES),
-    )
+        """SELECT time_bucket($2::interval, bucket) AS bucket, sum(attacks)::bigint AS attacks,
+                  sum(exploits)::bigint AS exploits, sum(logins)::bigint AS logins
+           FROM events_1m WHERE bucket >= date_trunc('minute', $1::timestamptz) GROUP BY 1 ORDER BY 1""", start, bucket)
     by_proto = await pool.fetch(
-        """SELECT coalesce(proto, honeypot) AS proto, count(*) AS n FROM events
-           WHERE ts > $1 AND event_type = ANY($2) GROUP BY 1 ORDER BY n DESC""",
-        start, list(ATTACK_TYPES),
-    )
+        f"SELECT proto, {total('n')} FROM {ports} r WHERE bucket >= $1 GROUP BY 1 ORDER BY n DESC", ports_from)
     return {
         "window": window,
         "totals": {**dict(totals), "distinct_cves": distinct_cves},
@@ -219,13 +246,14 @@ async def overview(request: Request, window: str = WindowParam):
 
 
 @api.get("/stats/cves")
+@cached
 async def cves(request: Request, window: str = WindowParam, limit: int = Query(40, le=100)):
     pool = request.app.state.pool
     start, bucket = await series_range(pool, window)
     top = await pool.fetch(
         """SELECT c AS cve, count(*) AS hits, count(DISTINCT src_ip) AS ips,
                   count(DISTINCT country_code) AS countries, min(ts) AS first_seen, max(ts) AS last_seen
-           FROM events, unnest(cves) c WHERE ts > $1 GROUP BY c ORDER BY hits DESC LIMIT $2""",
+           FROM events, unnest(cves) c WHERE ts > $1 AND cardinality(cves) > 0 GROUP BY c ORDER BY hits DESC LIMIT $2""",
         start, limit,
     )
     ids = [r["cve"] for r in top]
@@ -234,7 +262,7 @@ async def cves(request: Request, window: str = WindowParam, limit: int = Query(4
                   epss, epss_percentile FROM cve_info WHERE cve_id = ANY($1)""", ids)}
     spark_rows = await pool.fetch(
         """SELECT c AS cve, time_bucket($2::interval, ts) AS bucket, count(*) AS n
-           FROM events, unnest(cves) c WHERE ts > $1 AND c = ANY($3) GROUP BY c, bucket""",
+           FROM events, unnest(cves) c WHERE ts > $1 AND cardinality(cves) > 0 AND c = ANY($3) GROUP BY c, bucket""",
         start, bucket, ids,
     )
     sparks: dict[str, list] = {}
@@ -242,7 +270,7 @@ async def cves(request: Request, window: str = WindowParam, limit: int = Query(4
         sparks.setdefault(r["cve"], []).append(r)
     samples = {r["cve"]: r for r in await pool.fetch(
         """SELECT DISTINCT ON (c) c AS cve, http_method, http_path, http_body, command, host(src_ip) AS src_ip
-           FROM events, unnest(cves) c WHERE ts > $1 AND c = ANY($2) ORDER BY c, ts DESC""",
+           FROM events, unnest(cves) c WHERE ts > $1 AND cardinality(cves) > 0 AND c = ANY($2) ORDER BY c, ts DESC""",
         start, ids)}
     out = []
     for r in top:
@@ -261,45 +289,50 @@ async def cves(request: Request, window: str = WindowParam, limit: int = Query(4
 
 
 @api.get("/stats/tags")
+@cached
 async def tags(request: Request, window: str = WindowParam):
     names = {r.tag: r.name for r in request.app.state.rules.sig_rules if r.tag}
+    src, start = source(TAGS, window)
     res = await request.app.state.pool.fetch(
-        """SELECT t AS tag, count(*) AS hits, count(DISTINCT src_ip) AS ips
-           FROM events, unnest(tags) t WHERE ts > $1 GROUP BY t ORDER BY hits DESC""",
-        since(window))
+        f"""SELECT t AS tag, {total("n", "hits")}, count(DISTINCT src_ip) AS ips
+            FROM {src} r, unnest(tags) t WHERE bucket >= $1 GROUP BY t ORDER BY hits DESC""", start)
     return {"window": window, "tags": [{**dict(r), "name": names.get(r["tag"])} for r in res]}
 
 
 @api.get("/stats/geo")
+@cached
 async def geo(request: Request, window: str = WindowParam):
     pool = request.app.state.pool
-    start = since(window)
+    ips, start = source(IPS, window)
+    ports, _ = source(PORTS, window)
     countries = await pool.fetch(
-        """SELECT country_code, max(country) AS country, count(*) AS events, count(DISTINCT src_ip) AS ips,
-                  count(*) FILTER (WHERE cardinality(cves) > 0) AS exploits
-           FROM events WHERE ts > $1 AND country_code IS NOT NULL
-           GROUP BY country_code ORDER BY ips DESC""", start)
+        f"""SELECT country_code, max(country) AS country, {total("events")}, count(DISTINCT src_ip) AS ips,
+                   {total("exploits")}
+            FROM {ips} r WHERE bucket >= $1 AND country_code IS NOT NULL
+            GROUP BY country_code ORDER BY ips DESC""", start)
     asns = await pool.fetch(
-        """SELECT asn, max(as_org) AS as_org, count(*) AS events, count(DISTINCT src_ip) AS ips
-           FROM events WHERE ts > $1 AND asn IS NOT NULL GROUP BY asn ORDER BY ips DESC LIMIT 25""", start)
+        f"""SELECT asn, max(as_org) AS as_org, {total("events")}, count(DISTINCT src_ip) AS ips
+            FROM {ips} r WHERE bucket >= $1 AND asn IS NOT NULL GROUP BY asn ORDER BY ips DESC LIMIT 25""", start)
     ports = await pool.fetch(
-        """SELECT dst_port, coalesce(proto, honeypot) AS proto, count(*) AS events, count(DISTINCT src_ip) AS ips
-           FROM events WHERE ts > $1 AND dst_port IS NOT NULL AND event_type = ANY($2)
-           GROUP BY 1, 2 ORDER BY events DESC LIMIT 25""", start, list(ATTACK_TYPES))
+        f"""SELECT dst_port, proto, {total("n", "events")}, count(DISTINCT src_ip) AS ips
+            FROM {ports} r WHERE bucket >= $1 AND dst_port IS NOT NULL
+            GROUP BY 1, 2 ORDER BY events DESC LIMIT 25""", start)
     return {"window": window, "countries": rows(countries), "asns": rows(asns), "ports": rows(ports)}
 
 
 @api.get("/stats/creds")
+@cached
 async def creds(request: Request, window: str = WindowParam):
     pool = request.app.state.pool
-    start = since(window)
-    base = "FROM events WHERE ts > $1 AND (event_type = 'login_attempt' OR username IS NOT NULL)"
-    usernames = await pool.fetch(f"SELECT username AS value, count(*) AS n {base} AND username IS NOT NULL GROUP BY 1 ORDER BY n DESC LIMIT 25", start)
-    passwords = await pool.fetch(f"SELECT password AS value, count(*) AS n {base} AND password IS NOT NULL GROUP BY 1 ORDER BY n DESC LIMIT 25", start)
-    pairs = await pool.fetch(f"SELECT username, password, count(*) AS n {base} GROUP BY 1, 2 ORDER BY n DESC LIMIT 25", start)
-    lengths = await pool.fetch(f"SELECT least(length(password), 20) AS len, count(*) AS n {base} AND password IS NOT NULL GROUP BY 1 ORDER BY 1", start)
+    src, start = source(CREDS, window)
+    base = f"FROM {src} r WHERE bucket >= $1"
+    n = total("n")
+    usernames = await pool.fetch(f"SELECT username AS value, {n} {base} AND username IS NOT NULL GROUP BY 1 ORDER BY n DESC LIMIT 25", start)
+    passwords = await pool.fetch(f"SELECT password AS value, {n} {base} AND password IS NOT NULL GROUP BY 1 ORDER BY n DESC LIMIT 25", start)
+    pairs = await pool.fetch(f"SELECT username, password, {n} {base} GROUP BY 1, 2 ORDER BY n DESC LIMIT 25", start)
+    lengths = await pool.fetch(f"SELECT least(length(password), 20) AS len, {n} {base} AND password IS NOT NULL GROUP BY 1 ORDER BY 1", start)
     totals = await pool.fetchrow(
-        f"""SELECT count(*) AS attempts, count(*) FILTER (WHERE login_success) AS successes,
+        f"""SELECT {total("n", "attempts")}, {total("successes")},
                    count(DISTINCT username) AS unique_usernames, count(DISTINCT password) AS unique_passwords,
                    count(DISTINCT src_ip) AS ips {base}""", start)
     return {"window": window, "totals": dict(totals), "usernames": rows(usernames), "passwords": rows(passwords),
@@ -307,16 +340,18 @@ async def creds(request: Request, window: str = WindowParam):
 
 
 @api.get("/stats/techniques")
+@cached
 async def techniques(request: Request, window: str = WindowParam):
     pool = request.app.state.pool
-    start = since(window)
     meta = request.app.state.rules.techniques
+    src, start = source(TECHNIQUES, window)
     res = await pool.fetch(
-        """SELECT t AS technique, count(*) AS hits, count(DISTINCT src_ip) AS ips
-           FROM events, unnest(techniques) t WHERE ts > $1 GROUP BY t ORDER BY hits DESC""", start)
+        f"""SELECT t AS technique, {total("n", "hits")}, count(DISTINCT src_ip) AS ips
+            FROM {src} r, unnest(techniques) t WHERE bucket >= $1 GROUP BY t ORDER BY hits DESC""", start)
+    src, start = source(COMMANDS, window)
     commands = await pool.fetch(
-        """SELECT command, count(*) AS n, count(DISTINCT src_ip) AS ips FROM events
-           WHERE ts > $1 AND event_type = 'command' GROUP BY command ORDER BY n DESC LIMIT 30""", start)
+        f"""SELECT command, {total("n")}, count(DISTINCT src_ip) AS ips FROM {src} r
+            WHERE bucket >= $1 GROUP BY command ORDER BY n DESC LIMIT 30""", start)
     seen = {r["technique"]: dict(r) for r in res}
     catalog = [
         {"technique": t.id, "name": t.name, "tactic": t.tactic,
@@ -328,16 +363,16 @@ async def techniques(request: Request, window: str = WindowParam):
 
 
 @api.get("/stats/http")
+@cached
 async def http_stats(request: Request, window: str = WindowParam):
     pool = request.app.state.pool
-    start = since(window)
+    src, start = source(HTTP, window)
     paths = await pool.fetch(
-        """SELECT http_method AS method, split_part(http_path, '?', 1) AS path, count(*) AS n,
-                  count(DISTINCT src_ip) AS ips
-           FROM events WHERE ts > $1 AND honeypot = 'http' GROUP BY 1, 2 ORDER BY n DESC LIMIT 30""", start)
+        f"""SELECT method, path, {total("n")}, count(DISTINCT src_ip) AS ips
+            FROM {src} r WHERE bucket >= $1 GROUP BY 1, 2 ORDER BY n DESC LIMIT 30""", start)
     uas = await pool.fetch(
-        """SELECT http_ua AS ua, count(*) AS n, count(DISTINCT src_ip) AS ips FROM events
-           WHERE ts > $1 AND honeypot = 'http' GROUP BY 1 ORDER BY n DESC LIMIT 20""", start)
+        f"""SELECT ua, {total("n")}, count(DISTINCT src_ip) AS ips
+            FROM {src} r WHERE bucket >= $1 GROUP BY 1 ORDER BY n DESC LIMIT 20""", start)
     return {"window": window, "paths": [{**dict(r), "path": defang(r["path"])} for r in paths], "user_agents": rows(uas)}
 
 
@@ -352,16 +387,16 @@ async def malware(request: Request):
 # ---------------------------------------------------------------- attackers / sessions / live
 
 @api.get("/attackers/top")
+@cached
 async def top_attackers(request: Request, window: str = WindowParam, limit: int = Query(50, le=200)):
+    src, start = source(IPS, window)
     res = await request.app.state.pool.fetch(
-        """SELECT host(src_ip) AS ip, max(country_code) AS country_code, max(country) AS country,
-                  max(as_org) AS as_org, count(*) AS events,
-                  count(*) FILTER (WHERE event_type = 'login_attempt') AS logins,
-                  count(*) FILTER (WHERE event_type = 'command') AS commands,
-                  count(*) FILTER (WHERE cardinality(cves) > 0) AS exploits,
-                  array_agg(DISTINCT honeypot) AS honeypots, min(ts) AS first_seen, max(ts) AS last_seen
-           FROM events WHERE ts > $1 GROUP BY src_ip ORDER BY events DESC LIMIT $2""",
-        since(window), limit)
+        f"""SELECT host(src_ip) AS ip, max(country_code) AS country_code, max(country) AS country,
+                   max(as_org) AS as_org, {total("events")}, {total("logins")}, {total("commands")},
+                   {total("exploits")}, array_agg(DISTINCT honeypot) AS honeypots,
+                   min(first_seen) AS first_seen, max(last_seen) AS last_seen
+            FROM {src} r WHERE bucket >= $1 GROUP BY src_ip ORDER BY events DESC LIMIT $2""",
+        start, limit)
     return {"window": window, "attackers": rows(res)}
 
 

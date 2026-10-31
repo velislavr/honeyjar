@@ -41,6 +41,8 @@ CREATE INDEX IF NOT EXISTS events_type_ts     ON events (event_type, ts DESC);
 CREATE INDEX IF NOT EXISTS events_session     ON events (session_id, ts) WHERE session_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS events_cves        ON events USING gin (cves);
 CREATE INDEX IF NOT EXISTS events_techniques  ON events USING gin (techniques);
+-- Exploits are ~0.2% of events; the CVE panels read them through this instead of scanning the rest.
+CREATE INDEX IF NOT EXISTS events_with_cves   ON events (ts DESC) WHERE cardinality(cves) > 0;
 
 -- Compress chunks older than 7 days (columnar, typically 10-20x smaller).
 DO $$
