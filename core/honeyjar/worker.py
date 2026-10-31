@@ -9,7 +9,7 @@ import asyncpg
 import orjson
 import redis.asyncio as aioredis
 
-from . import config, db, intel
+from . import config, db, intel, triage
 from .defang import defang
 from .geo import GeoLookup
 from .normalize import normalize
@@ -109,6 +109,7 @@ async def side_effects(pool: asyncpg.Pool, r: aioredis.Redis, events: list[Event
     for e in events:
         if e.cves or e.event_type in ("command", "download") or e.login_success:
             await intel.queue_ip(r, e.src_ip)
+    await triage.track(r, events)
     sensors = {e.sensor_id: e.ts for e in events}
     await pool.executemany(
         """INSERT INTO sensors (id, last_seen) VALUES ($1, $2)
@@ -168,6 +169,7 @@ async def main():
         consume(pool, r, enricher),
         intel.abuseipdb_loop(r, pool),
         intel.malwarebazaar_loop(r, pool),
+        triage.triage_loop(r, pool),
     )
 
 

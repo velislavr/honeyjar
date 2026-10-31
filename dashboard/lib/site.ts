@@ -18,6 +18,7 @@ export const PAGES = [
   { path: "/", title: "Live attack map", description: "Real connections hitting Honeyjar's honeypot sensors right now, on a 3D globe with a live event feed." },
   { path: "/vulnerabilities", title: "Exploited vulnerabilities", description: "Which CVEs attackers are exploiting against our honeypots, with CISA KEV status, EPSS and CVSS scores." },
   { path: "/attackers", title: "Attackers & infrastructure", description: "Where attacks come from: source countries, hosting networks (ASNs), targeted ports and the most active IPs." },
+  { path: "/triage", title: "Session verdicts", description: "Every attack session labelled by actor, intent and severity, with a review queue of the sessions worth a human's time." },
   { path: "/credentials", title: "Credential stuffing", description: "The usernames and passwords bots try against SSH and Telnet honeypots, and which ones they reuse most." },
   { path: "/ttps", title: "MITRE ATT&CK coverage", description: "What attackers do after they get a shell, mapped to MITRE ATT&CK techniques and tactics." },
   { path: "/payloads", title: "Payloads & web probes", description: "Malware hashes, download URLs and the web paths and user agents scanners probe for." },

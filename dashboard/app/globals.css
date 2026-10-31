@@ -237,3 +237,10 @@ tr[role="button"]:focus-visible { outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
+
+/* ---------- triage verdicts ---------- */
+.badge.sev-low { font-weight: 500; }
+.badge.sev-medium { color: var(--ink); border-color: color-mix(in srgb, var(--warning) 55%, transparent); background: color-mix(in srgb, var(--warning) 12%, transparent); }
+.badge.sev-high { color: light-dark(#8a3a14, #ffc39f); border-color: color-mix(in srgb, var(--serious) 45%, transparent); background: color-mix(in srgb, var(--serious) 12%, transparent); }
+.badge.sev-critical, .badge.sev-escalate { color: light-dark(#8f1f1f, #ffb4b4); border-color: color-mix(in srgb, var(--critical) 45%, transparent); background: color-mix(in srgb, var(--critical) 12%, transparent); }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--link); cursor: pointer; font: inherit; }

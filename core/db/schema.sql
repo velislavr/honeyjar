@@ -113,3 +113,27 @@ CREATE TABLE IF NOT EXISTS sensors (
     id         text PRIMARY KEY,
     last_seen  timestamptz
 );
+
+-- One verdict per attack session (honeyjar/triage.py): Jev decision model, fingerprint cache or rules.
+CREATE TABLE IF NOT EXISTS session_verdicts (
+    session_id   text PRIMARY KEY,
+    sensor_id    text        NOT NULL,
+    src_ip       inet        NOT NULL,
+    started_at   timestamptz NOT NULL,
+    ended_at     timestamptz NOT NULL,
+    actor        text        NOT NULL,
+    intent       text        NOT NULL,
+    severity     text        NOT NULL,
+    escalate     boolean     NOT NULL DEFAULT false,
+    confidence   real,
+    fingerprint  text,
+    source       text        NOT NULL,
+    model        text,
+    tokens       integer     NOT NULL DEFAULT 0,
+    created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS session_verdicts_ended    ON session_verdicts (ended_at DESC);
+CREATE INDEX IF NOT EXISTS session_verdicts_severity ON session_verdicts (severity, ended_at DESC);
+CREATE INDEX IF NOT EXISTS session_verdicts_escalate ON session_verdicts (ended_at DESC) WHERE escalate;
+CREATE INDEX IF NOT EXISTS session_verdicts_ip       ON session_verdicts (src_ip);
+CREATE INDEX IF NOT EXISTS session_verdicts_fp       ON session_verdicts (fingerprint);

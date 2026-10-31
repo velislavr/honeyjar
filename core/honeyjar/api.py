@@ -384,6 +384,52 @@ async def malware(request: Request):
     return {"malware": [{**dict(r), "source_url": defang(r["source_url"])} for r in res]}
 
 
+# ---------------------------------------------------------------- session triage
+
+VERDICT_COLS = """session_id, sensor_id, host(src_ip) AS src_ip, started_at, ended_at, actor, intent, severity,
+                  escalate, confidence, source, model"""
+
+
+@api.get("/stats/triage")
+async def triage_stats(request: Request, window: str = WindowParam):
+    pool = request.app.state.pool
+    start, bucket = await series_range(pool, window)
+    totals = await pool.fetchrow(
+        """SELECT count(*) AS sessions, count(*) FILTER (WHERE escalate) AS escalated,
+                  count(*) FILTER (WHERE source = 'jev') AS jev, count(*) FILTER (WHERE source = 'cache') AS cached,
+                  count(*) FILTER (WHERE source = 'rules') AS rules, coalesce(sum(tokens), 0) AS tokens
+           FROM session_verdicts WHERE ended_at > $1""", start)
+
+    async def counts(col: str):
+        return rows(await pool.fetch(
+            f"SELECT {col} AS label, count(*) AS n FROM session_verdicts WHERE ended_at > $1 GROUP BY 1 ORDER BY n DESC",
+            start))
+
+    series = await pool.fetch(
+        """SELECT time_bucket($2::interval, ended_at) AS bucket,
+                  count(*) FILTER (WHERE severity = 'low') AS low,
+                  count(*) FILTER (WHERE severity = 'medium') AS medium,
+                  count(*) FILTER (WHERE severity = 'high') AS high,
+                  count(*) FILTER (WHERE severity = 'critical') AS critical
+           FROM session_verdicts WHERE ended_at > $1 GROUP BY bucket ORDER BY bucket""", start, bucket)
+    return {
+        "window": window, "totals": dict(totals),
+        "actors": await counts("actor"), "intents": await counts("intent"), "severities": await counts("severity"),
+        "timeline": fill_series(series, bucket, start, ("low", "medium", "high", "critical")),
+    }
+
+
+@api.get("/triage/queue")
+async def triage_queue(request: Request, window: str = WindowParam, limit: int = Query(50, le=200),
+                       all_sessions: bool = Query(False, alias="all")):
+    """Sessions worth a human's time: escalated or high/critical, newest first."""
+    res = await request.app.state.pool.fetch(
+        f"""SELECT {VERDICT_COLS} FROM session_verdicts
+            WHERE ended_at > $1 AND ($3 OR escalate OR severity IN ('high', 'critical'))
+            ORDER BY ended_at DESC LIMIT $2""", since(window), limit, all_sessions)
+    return {"window": window, "sessions": rows(res)}
+
+
 # ---------------------------------------------------------------- attackers / sessions / live
 
 @api.get("/attackers/top")
@@ -434,6 +480,8 @@ async def attacker(request: Request, ip: str):
                   bool_or(login_success) AS logged_in
            FROM events WHERE src_ip = $1::inet AND session_id IS NOT NULL
            GROUP BY session_id ORDER BY start DESC LIMIT 50""", ip)
+    verdicts = await pool.fetch(
+        f"SELECT {VERDICT_COLS} FROM session_verdicts WHERE src_ip = $1::inet ORDER BY ended_at DESC LIMIT 50", ip)
     recent = await pool.fetch(
         """SELECT ts, honeypot, event_type, dst_port, username, password, command, http_method, http_path,
                   cves, techniques, tags FROM events WHERE src_ip = $1::inet ORDER BY ts DESC LIMIT 200""", ip)
@@ -442,6 +490,7 @@ async def attacker(request: Request, ip: str):
         "cves": [r["cve"] for r in cve_list], "techniques": [r["t"] for r in tech_list],
         "intel": dict(intel_row) if intel_row else None,
         "sessions": rows(sessions),
+        "verdicts": rows(verdicts),
         "events": [{**dict(r), "command": defang(r["command"]), "http_path": defang(r["http_path"])} for r in recent],
     }
 
@@ -454,7 +503,9 @@ async def session(request: Request, session_id: str):
         session_id[:64])
     if not res:
         raise HTTPException(404, "unknown session")
-    return {"session_id": session_id, "events": [
+    verdict = await request.app.state.pool.fetchrow(
+        f"SELECT {VERDICT_COLS} FROM session_verdicts WHERE session_id = $1", session_id[:64])
+    return {"session_id": session_id, "verdict": dict(verdict) if verdict else None, "events": [
         {**dict(r), "command": defang(r["command"]), "download_url": defang(r["download_url"])} for r in res]}
 
 

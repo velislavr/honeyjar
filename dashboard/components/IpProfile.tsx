@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Tile } from "@/components/charts";
 import { PageHead } from "@/components/Shell";
 import Icon, { CountryCode } from "@/components/Icon";
+import { ACTOR_LABEL, INTENT_LABEL, SOURCE_LABEL, SeverityBadge, type Verdict } from "@/components/Verdict";
 import { ago, fmt, useApi } from "@/lib/api";
 
 interface Profile {
@@ -17,6 +18,7 @@ interface Profile {
   cves: string[];
   techniques: string[];
   intel: { abuse_score: number | null; total_reports: number | null; usage_type: string | null; isp: string | null; is_tor: boolean | null } | null;
+  verdicts?: Verdict[];
   sessions: { session_id: string; start: string; end: string; proto: string | null; logins: number; commands: number; logged_in: boolean | null }[];
   events: { ts: string; honeypot: string; event_type: string; dst_port: number | null; username: string | null; password: string | null;
     command: string | null; http_method: string | null; http_path: string | null; cves: string[]; techniques: string[]; tags: string[] }[];
@@ -31,6 +33,7 @@ export default function IpProfile() {
   if (error) return <><PageHead title={ip} picker={false} /><div className="card empty">No recorded activity from this IP.</div></>;
   if (!data) return <PageHead title={ip} picker={false} />;
   const s = data.summary;
+  const verdicts = new Map((data.verdicts ?? []).map((v) => [v.session_id, v]));
 
   return (
     <>
@@ -75,7 +78,7 @@ export default function IpProfile() {
           {!data.sessions.length ? <div className="empty">No interactive sessions</div> : (
             <div className="scroll-x" style={{ maxHeight: 320, overflowY: "auto" }}>
               <table className="data">
-                <thead><tr><th>Session</th><th>Start</th><th>Proto</th><th className="num">Logins</th><th className="num">Commands</th><th>Shell</th></tr></thead>
+                <thead><tr><th>Session</th><th>Start</th><th>Proto</th><th className="num">Logins</th><th className="num">Commands</th><th>Shell</th><th>Verdict</th></tr></thead>
                 <tbody>
                   {data.sessions.map((x) => (
                     <tr key={x.session_id} onClick={() => setSession(x.session_id)} role="button" tabIndex={0} aria-pressed={session === x.session_id}
@@ -88,6 +91,7 @@ export default function IpProfile() {
                       <td className="num">{x.logins}</td>
                       <td className="num">{x.commands}</td>
                       <td>{x.logged_in ? <span className="badge"><Icon name="terminal" />got shell</span> : <span className="muted">–</span>}</td>
+                      <td><VerdictCell v={verdicts.get(x.session_id)} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -125,6 +129,16 @@ export default function IpProfile() {
         </section>
       </div>
     </>
+  );
+}
+
+function VerdictCell({ v }: { v?: Verdict }) {
+  if (!v) return <span className="muted">–</span>;
+  return (
+    <span className="row" style={{ gap: 6, flexWrap: "nowrap" }} title={`${INTENT_LABEL[v.intent] ?? v.intent} · ${SOURCE_LABEL[v.source]}`}>
+      <SeverityBadge v={v} />
+      <span className="ink2">{ACTOR_LABEL[v.actor] ?? v.actor}</span>
+    </span>
   );
 }
 

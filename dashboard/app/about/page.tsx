@@ -44,6 +44,7 @@ export default function AboutPage() {
             <li>Every match is cross-referenced with the CISA KEV catalog (exploited in the wild, ransomware use) and the EPSS exploit-probability score.</li>
             <li>30+ MITRE ATT&CK technique mappings for post-login shell activity: discovery, persistence, defense evasion, resource hijacking.</li>
             <li>Recon classification: secret-file hunting, VCS exposure, webshell probes, scanner fingerprints.</li>
+            <li>Session triage: each closed session gets an actor / intent / severity verdict. Noteworthy sessions are judged by the Jev decision model; scans and password guessing by rules; replayed bot scripts reuse a cached verdict by fingerprint.</li>
           </ul>
         </section>
         <section className="card span-6">
@@ -53,6 +54,7 @@ export default function AboutPage() {
             <li>Nothing an attacker sends is executed: Cowrie emulates the shell, and the HTTP honeypot only returns canned responses.</li>
             <li>SSH port-forwarding is disabled, so the honeypot cannot be used as a relay.</li>
             <li>Malware is stored as hashes only; URLs and IPs inside payloads are defanged before display.</li>
+            <li>Attacker-typed commands reach the triage model, so they are treated as untrusted: they are defanged and framed as data, the model can only answer from fixed label sets that are validated server-side, and a verdict never triggers an action. A prompt injection can at worst mislabel one session.</li>
           </ul>
         </section>
         <section className="card span-12">

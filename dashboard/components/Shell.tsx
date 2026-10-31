@@ -11,6 +11,7 @@ const NAV = [
   { href: "/", label: "Live" },
   { href: "/vulnerabilities", label: "Vulnerabilities" },
   { href: "/attackers", label: "Attackers" },
+  { href: "/triage", label: "Triage" },
   { href: "/credentials", label: "Credentials" },
   { href: "/ttps", label: "ATT&CK" },
   { href: "/payloads", label: "Payloads" },
