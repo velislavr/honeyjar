@@ -46,11 +46,14 @@ const MATERIAL = {
 
 // Default globe.gl camera: 50 degree vertical field of view; the globe radius is the altitude unit.
 const HALF_FOV = (25 * Math.PI) / 180;
-/** Camera altitude at which the whole globe fits the panel with a little margin, whatever its shape. */
+// Arcs peak at (great-circle distance / 2) * arcAltitudeAutoScale above the surface: about 0.4 globe
+// radii for Asia -> Washington. Frame that headroom too, or long arcs leave the panel.
+const ARC_HEADROOM = 1.5;
+/** Camera altitude at which the globe and its arcs fit the panel, whatever its shape. */
 function fitAltitude(w: number, h: number) {
   const halfH = Math.atan(Math.tan(HALF_FOV) * (w / Math.max(1, h)));
   const half = Math.min(HALF_FOV, halfH);
-  return Math.max(1.65, 1 / Math.sin(half * 0.88) - 1);
+  return ARC_HEADROOM / Math.sin(half) - 1;
 }
 
 // Accessors live at module scope on purpose: globe.gl compares props by identity, and a new
