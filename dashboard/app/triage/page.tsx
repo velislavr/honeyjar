@@ -4,36 +4,33 @@ import Link from "next/link";
 import { useState } from "react";
 import { BarList, LineChart, Tile } from "@/components/charts";
 import { PageHead } from "@/components/Shell";
-import { ACTOR_LABEL, INTENT_LABEL, SOURCE_LABEL, SeverityBadge, type Verdict } from "@/components/Verdict";
+import { ACTOR_LABEL, INTENT_LABEL, SeverityBadge, type Verdict } from "@/components/Verdict";
 import { ago, fmt, useStats } from "@/lib/api";
 
 interface Count { label: string; n: number }
 interface TriageStats {
-  totals: { sessions: number; escalated: number; jev: number; cached: number; rules: number; tokens: number };
+  totals: { sessions: number };
   actors: Count[]; intents: Count[]; severities: Count[];
   timeline: { t: string; low: number; medium: number; high: number; critical: number }[];
 }
-
-const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : "–");
 
 export default function TriagePage() {
   const [all, setAll] = useState(false);
   const { data: st } = useStats<TriageStats>("/stats/triage", 20000);
   const { data: q } = useStats<{ sessions: (Verdict & { sessions: number; ips: number })[] }>(`/triage/queue?limit=100${all ? "&all=true" : ""}`, 20000);
   const t = st?.totals;
+  const sev = (...names: string[]) => (st?.severities ?? []).filter((c) => names.includes(c.label)).reduce((n, c) => n + c.n, 0);
   const timeline = (st?.timeline ?? []).map((p) => ({ ...p, serious: p.high + p.critical }));
 
   return (
     <>
       <PageHead eyebrow="Triage" title="Session verdicts"
-        desc={<>Every attack session gets a verdict: who is behind it, what they want and how severe it is. Interesting sessions go to
-          the <a className="link" href="https://jevapi.io/jev-api/" target="_blank" rel="noreferrer">Jev</a> decision model, routine noise
-          is labelled by rules, and repeated bot scripts reuse a cached verdict.</>} />
+        desc="Every attack session gets a verdict: who is behind it, what they want and how severe it is, judged by rules over its logins, commands, exploits and downloads. Bots replaying the same script are grouped into one row." />
       <div className="tiles">
-        <Tile label="Sessions judged" value={fmt(t?.sessions)} note={`${fmt(t?.escalated)} flagged for review`} />
-        <Tile label="Judged by Jev" value={fmt(t?.jev)} note={`${fmt(t?.tokens)} tokens used`} />
-        <Tile label="Cache hits" value={fmt(t?.cached)} note={`${pct(t?.cached ?? 0, (t?.jev ?? 0) + (t?.cached ?? 0))} of model-worthy sessions`} />
-        <Tile label="Rules only" value={fmt(t?.rules)} note="scans and password guessing" />
+        <Tile label="Sessions judged" value={fmt(t?.sessions)} />
+        <Tile label="High severity" value={fmt(sev("high", "critical"))} note="malware installs, exploits, persistence" />
+        <Tile label="Medium" value={fmt(sev("medium"))} note="post-login recon, injection probes" />
+        <Tile label="Low" value={fmt(sev("low"))} note="scans and password guessing" />
       </div>
       <div className="grid">
         <section className="card span-4">
@@ -61,7 +58,7 @@ export default function TriagePage() {
           {!q?.sessions.length ? <div className="empty">{all ? "No sessions judged in this window yet" : "Nothing needs review in this window"}</div> : (
             <div className="scroll-x">
               <table className="data">
-                <thead><tr><th>Severity</th><th>Actor</th><th>Intent</th><th className="num">Sessions</th><th className="num">IPs</th><th>Latest IP</th><th>Sensor</th><th>Judged by</th><th className="num">Confidence</th><th>Last seen</th></tr></thead>
+                <thead><tr><th>Severity</th><th>Actor</th><th>Intent</th><th className="num">Sessions</th><th className="num">IPs</th><th>Latest IP</th><th>Sensor</th><th>Last seen</th></tr></thead>
                 <tbody>
                   {q.sessions.map((v) => (
                     <tr key={v.session_id}>
@@ -72,8 +69,6 @@ export default function TriagePage() {
                       <td className="num">{fmt(v.ips)}</td>
                       <td><Link className="link mono" href={`/ip/${v.src_ip}`}>{v.src_ip}</Link></td>
                       <td className="muted">{v.sensor_id}</td>
-                      <td className="muted">{SOURCE_LABEL[v.source]}</td>
-                      <td className="num">{v.confidence == null ? "–" : `${Math.round(v.confidence * 100)}%`}</td>
                       <td className="muted" style={{ whiteSpace: "nowrap" }}>{ago(v.ended_at)}</td>
                     </tr>
                   ))}

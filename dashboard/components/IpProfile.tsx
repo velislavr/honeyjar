@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Tile } from "@/components/charts";
 import { PageHead } from "@/components/Shell";
 import Icon, { CountryCode } from "@/components/Icon";
-import { ACTOR_LABEL, INTENT_LABEL, SOURCE_LABEL, SeverityBadge, type Verdict } from "@/components/Verdict";
+import { ACTOR_LABEL, INTENT_LABEL, SeverityBadge, type Verdict } from "@/components/Verdict";
 import { ago, fmt, useApi } from "@/lib/api";
 
 interface Profile {
@@ -135,7 +135,7 @@ export default function IpProfile() {
 function VerdictCell({ v }: { v?: Verdict }) {
   if (!v) return <span className="muted">–</span>;
   return (
-    <span className="row" style={{ gap: 6, flexWrap: "nowrap" }} title={`${INTENT_LABEL[v.intent] ?? v.intent} · ${SOURCE_LABEL[v.source]}`}>
+    <span className="row" style={{ gap: 6, flexWrap: "nowrap" }} title={INTENT_LABEL[v.intent] ?? v.intent}>
       <SeverityBadge v={v} />
       <span className="ink2">{ACTOR_LABEL[v.actor] ?? v.actor}</span>
     </span>
